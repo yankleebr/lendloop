@@ -31,10 +31,18 @@ npm run test:run   # Vitest (single run)
 
 | Piece | DEV | PROD |
 |---|---|---|
-| Next.js | `localhost:3000` | Vercel (`*.vercel.app`) |
-| Convex | dev deployment | prod deployment |
+| Next.js | `localhost:3000` | Vercel project `lendloop` → https://lendloop-tawny.vercel.app |
+| Convex | dev deployment (`effervescent-squid-656`) | prod deployment (`enchanted-raven-234`) |
 | Clerk | app "LendLoop Dev" (Development instance) | app "LendLoop Prod" (Development instance — `*.vercel.app` cannot host a Clerk Production instance) |
 | n8n Cloud | `[DEV]` workflows + `HMAC DEV` credential | `[PROD]` workflows + `HMAC PROD` credential |
+
+### PROD configuration (Vercel dashboard / Convex dashboard)
+
+- Vercel build command: `npx convex deploy --cmd 'npm run build'`. It pushes functions/schema to Convex prod, then runs the Next.js build with `NEXT_PUBLIC_CONVEX_URL` / `NEXT_PUBLIC_CONVEX_SITE_URL` injected — these and `CONVEX_DEPLOYMENT` are **not** set in Vercel.
+- Vercel env vars, **Production scope only**: `CONVEX_DEPLOY_KEY` (Convex production deploy key, `deployment:deploy` only), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` ("LendLoop Prod" keys). Preview/Development scopes have no variables.
+- Preview builds are disabled: Vercel → Ignored Build Step = "Only build production".
+- Convex prod env var `CLERK_JWT_ISSUER_DOMAIN` = "LendLoop Prod" Frontend API URL. Both Clerk apps have the Convex integration activated and the same session token claims (`name`, `email`).
+- Rollback: Vercel Instant Rollback (does not revert Convex prod functions — revert the commit on `main` for that).
 
 ### Environment rules
 
