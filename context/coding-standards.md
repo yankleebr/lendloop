@@ -25,7 +25,7 @@
 - Only use `'use client'` when needed (interactivity, hooks, browser APIs, Convex `useQuery`/`useMutation`)
 - **No Server Actions or Prisma** — all data reads/writes go through Convex functions
 - Next.js API routes only when Convex cannot do the job (none expected; n8n talks to Convex HTTP actions directly)
-- Route protection via Clerk `clerkMiddleware` in `src/proxy.ts`
+- Route protection via `await auth.protect()` (Clerk) in each protected page; `clerkMiddleware()` in `src/proxy.ts` stays without route matching (`createRouteMatcher` is deprecated). **Every `page.tsx` under `src/app/(app)/` must start with `await auth.protect()`** — the layout must not do it (it does not re-run on client navigation). This is UI defense-in-depth — authorization lives in Convex
 - Dynamic routes for item/collection pages
 
 ## Convex

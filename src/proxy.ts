@@ -1,7 +1,8 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
-// All routes are public at the proxy level; authorization is enforced
-// inside Convex functions (and `auth.protect()` in protected pages).
+// All routes are public at the proxy level (no createRouteMatcher — deprecated).
+// Protected pages call `await auth.protect()` themselves (see src/app/(app)/);
+// authorization is enforced inside Convex functions.
 export default clerkMiddleware();
 
 export const config = {

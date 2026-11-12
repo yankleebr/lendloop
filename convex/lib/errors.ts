@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
 
-export type AppErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND";
+export type AppErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_ARGUMENT";
 
 /**
  * Payload of every expected application error. `message` is shown to the user.
@@ -25,4 +25,8 @@ export function forbidden(message = "You are not allowed to do this."): never {
 
 export function notFound(message = "Not found."): never {
   return appError("NOT_FOUND", message);
+}
+
+export function invalidArgument(message = "Invalid input."): never {
+  return appError("INVALID_ARGUMENT", message);
 }

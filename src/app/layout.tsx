@@ -30,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ClerkProvider>
           <ConvexClientProvider>{children}</ConvexClientProvider>
         </ClerkProvider>
-        <Toaster />
+        <Toaster position="top-center" />
       </body>
     </html>
   );

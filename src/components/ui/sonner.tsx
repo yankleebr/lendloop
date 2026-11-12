@@ -38,7 +38,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          // Sonner's styles are unlayered, so Tailwind utilities need `!` to win.
+          // The icon is taken out of the flow so the text centers on the whole toast;
+          // the extra horizontal padding keeps long messages clear of the icon.
+          toast: "cn-toast px-10! text-center!",
+          icon: "absolute! top-1/2! left-4! m-0! -translate-y-1/2!",
+          content: "w-full",
         },
       }}
       {...props}

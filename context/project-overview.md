@@ -102,12 +102,16 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users` is implemented (see `context/features/schema-rbac.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users` and `tools` are implemented (see `context/features/schema-rbac.md` and `context/features/tools-public-page.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
 users:          { tokenIdentifier, name, email?, role: "user" | "admin", isTrustedLender }  // index by_token
 tools:          { ownerId, name, category, condition, description, isActive }
+                // category/condition: fixed enums in convex/lib/validators.ts
+                // isActive: false = removed (soft delete, keeps loan history intact)
+                // indexes by_active_category, by_owner_active
+                // availability is NOT stored: derived from loans at read time (getAvailability in convex/lib/tools.ts)
 loans:          { toolId, borrowerId, lenderId, startDate, endDate,
                   status: "pending" | "approved" | "rejected" | "returned", returnedAt? }
 automationLogs: { loanId, kind: "notification" | "reminder", status, idempotencyKey, createdAt }
