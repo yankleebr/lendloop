@@ -1,27 +1,26 @@
 "use client";
 
 import { SignInButton, UserButton } from "@clerk/nextjs";
-import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
 import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
-function IdentityProof() {
-  const me = useQuery(api.whoami.get);
+function StoredUser() {
+  const { isLoading, user } = useCurrentUser();
 
-  if (me === undefined) {
-    return <p className="text-sm text-muted-foreground">Loading identity…</p>;
-  }
-  if (me === null) {
-    return <p className="text-sm text-muted-foreground">No identity received.</p>;
+  if (isLoading || user === null) {
+    return <p className="text-sm text-muted-foreground">Loading your account…</p>;
   }
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-      <dt className="text-muted-foreground">Subject</dt>
-      <dd className="font-mono break-all">{me.subject}</dd>
       <dt className="text-muted-foreground">Name</dt>
-      <dd>{me.name ?? "—"}</dd>
+      <dd>{user.name}</dd>
       <dt className="text-muted-foreground">Email</dt>
-      <dd>{me.email ?? "—"}</dd>
+      <dd className="break-all">{user.email ?? "—"}</dd>
+      <dt className="text-muted-foreground">Role</dt>
+      <dd>
+        <span className="rounded-full border px-2 py-0.5 text-xs font-medium">{user.role}</span>
+      </dd>
     </dl>
   );
 }
@@ -39,7 +38,7 @@ export function AuthStatus() {
       </Unauthenticated>
       <Authenticated>
         <UserButton />
-        <IdentityProof />
+        <StoredUser />
       </Authenticated>
     </div>
   );

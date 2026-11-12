@@ -102,11 +102,11 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — subject to change in the schema/RBAC spec.
+> ⚠️ **DRAFT** — `users` is implemented (see `context/features/schema-rbac.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
-users:          { clerkId, name, email, role: "user" | "admin", isTrustedLender }
+users:          { tokenIdentifier, name, email?, role: "user" | "admin", isTrustedLender }  // index by_token
 tools:          { ownerId, name, category, condition, description, isActive }
 loans:          { toolId, borrowerId, lenderId, startDate, endDate,
                   status: "pending" | "approved" | "rejected" | "returned", returnedAt? }

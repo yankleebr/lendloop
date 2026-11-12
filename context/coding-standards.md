@@ -111,10 +111,15 @@ import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
+const modules = import.meta.glob("./**/*.ts");
+
 test("non-owner cannot delete a listing", async () => {
-  const t = convexTest(schema);
+  const t = convexTest(schema, modules);
   const alice = t.withIdentity({ subject: "user_alice" });
   const bob = t.withIdentity({ subject: "user_bob" });
+  // functions guarded by requireUser need the caller's users row first
+  await alice.mutation(api.users.store, {});
+  await bob.mutation(api.users.store, {});
   const toolId = await alice.mutation(api.tools.create, { name: "Drill", category: "power_tools", condition: "good", description: "" });
   await expect(bob.mutation(api.tools.remove, { toolId })).rejects.toThrow();
 });
