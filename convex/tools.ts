@@ -8,6 +8,7 @@ import {
   getAvailability,
   normalizeToolInput,
   requireOwnedActiveTool,
+  resolveToday,
 } from "./lib/tools";
 import { MAX_BOARD_TOOLS, MAX_OWN_TOOLS } from "./lib/toolRules";
 import { publicUser, publicUserValidator, type PublicUser } from "./lib/users";
@@ -19,6 +20,9 @@ import {
 } from "./lib/validators";
 
 const MISSING_OWNER_NAME = "Neighbor";
+
+/** Caller's local "YYYY-MM-DD"; optional so older clients keep working (server UTC fallback). */
+const todayArg = v.optional(v.string());
 
 const toolFieldsArgs = {
   name: v.string(),
@@ -48,7 +52,7 @@ async function activeBoardTools(
 
 /** Public board for visitors: only `_id`, name and category of active, available tools. */
 export const listPublic = query({
-  args: {},
+  args: { today: todayArg },
   returns: v.array(
     v.object({
       _id: v.id("tools"),
@@ -56,9 +60,12 @@ export const listPublic = query({
       category: toolCategoryValidator,
     }),
   ),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    const today = resolveToday(args.today);
     const tools = await activeBoardTools(ctx);
-    const availability = await Promise.all(tools.map((tool) => getAvailability(ctx, tool)));
+    const availability = await Promise.all(
+      tools.map((tool) => getAvailability(ctx, tool, today)),
+    );
     return tools
       .filter((_, i) => availability[i] === "available")
       .map((tool) => ({ _id: tool._id, name: tool.name, category: tool.category }))
@@ -68,7 +75,7 @@ export const listPublic = query({
 
 /** All active tools for signed-in users, with owner projection and availability. */
 export const list = query({
-  args: { category: v.optional(toolCategoryValidator) },
+  args: { category: v.optional(toolCategoryValidator), today: todayArg },
   returns: v.array(
     v.object({
       _id: v.id("tools"),
@@ -81,9 +88,10 @@ export const list = query({
       availability: availabilityValidator,
     }),
   ),
-  handler: async (ctx, { category }) => {
+  handler: async (ctx, args) => {
     const me = await requireUser(ctx);
-    const tools = await activeBoardTools(ctx, category);
+    const today = resolveToday(args.today);
+    const tools = await activeBoardTools(ctx, args.category);
 
     const ownerIds = [...new Set(tools.map((tool) => tool.ownerId))];
     const owners = new Map<Id<"users">, PublicUser>();
@@ -103,7 +111,7 @@ export const list = query({
         description: tool.description,
         owner: owners.get(tool.ownerId)!,
         isMine: tool.ownerId === me._id,
-        availability: await getAvailability(ctx, tool),
+        availability: await getAvailability(ctx, tool, today),
       })),
     );
     return items.sort(byName);
@@ -112,7 +120,7 @@ export const list = query({
 
 /** The caller's own active listings. */
 export const listMine = query({
-  args: {},
+  args: { today: todayArg },
   returns: v.array(
     v.object({
       _id: v.id("tools"),
@@ -124,8 +132,9 @@ export const listMine = query({
       availability: availabilityValidator,
     }),
   ),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const me = await requireUser(ctx);
+    const today = resolveToday(args.today);
     const tools = await ctx.db
       .query("tools")
       .withIndex("by_owner_active", (q) => q.eq("ownerId", me._id).eq("isActive", true))
@@ -139,7 +148,7 @@ export const listMine = query({
         category: tool.category,
         condition: tool.condition,
         description: tool.description,
-        availability: await getAvailability(ctx, tool),
+        availability: await getAvailability(ctx, tool, today),
       })),
     );
     return items.sort(byName);

@@ -1,6 +1,11 @@
 import { ConvexError } from "convex/values";
 
-export type AppErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "INVALID_ARGUMENT";
+export type AppErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "INVALID_ARGUMENT"
+  | "CONFLICT";
 
 /**
  * Payload of every expected application error. `message` is shown to the user.
@@ -29,4 +34,9 @@ export function notFound(message = "Not found."): never {
 
 export function invalidArgument(message = "Invalid input."): never {
   return appError("INVALID_ARGUMENT", message);
+}
+
+/** The request is valid, but the current state forbids it (e.g. invalid transition, overlap). */
+export function conflict(message = "This action is no longer possible."): never {
+  return appError("CONFLICT", message);
 }

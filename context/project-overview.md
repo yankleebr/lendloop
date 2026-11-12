@@ -102,7 +102,7 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users` and `tools` are implemented (see `context/features/schema-rbac.md` and `context/features/tools-public-page.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users`, `tools` and `loans` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md` and `context/features/loans.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
@@ -113,7 +113,11 @@ tools:          { ownerId, name, category, condition, description, isActive }
                 // indexes by_active_category, by_owner_active
                 // availability is NOT stored: derived from loans at read time (getAvailability in convex/lib/tools.ts)
 loans:          { toolId, borrowerId, lenderId, startDate, endDate,
-                  status: "pending" | "approved" | "rejected" | "returned", returnedAt? }
+                  status: "pending" | "approved" | "rejected" | "cancelled" | "returned",
+                  decidedAt?, cancelledAt?, returnedAt?, closeReason?: "period_taken" | "tool_removed" }
+                // startDate/endDate: "YYYY-MM-DD" strings, inclusive whole days; requested at = _creationTime
+                // lenderId = tool.ownerId at request time; status changes only via transitionLoan
+                // indexes by_tool_status_start, by_borrower, by_borrower_status, by_lender, by_status_end
 automationLogs: { loanId, kind: "notification" | "reminder", status, idempotencyKey, createdAt }
 ```
 

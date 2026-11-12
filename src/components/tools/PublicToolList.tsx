@@ -16,7 +16,7 @@ export function PublicToolList({ preloaded }: PublicToolListProps) {
   if (tools.length === 0) {
     return (
       <p className="py-8 text-center text-muted-foreground">
-        No tools listed yet. Be the first to lend one!
+        No tools available right now. Be the first to lend one!
       </p>
     );
   }

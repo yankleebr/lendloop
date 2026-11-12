@@ -54,7 +54,8 @@ export function RemoveToolDialog({ tool, onOpenChange }: RemoveToolDialogProps) 
         <AlertDialogHeader>
           <AlertDialogTitle>Remove this tool?</AlertDialogTitle>
           <AlertDialogDescription className="break-words">
-            &ldquo;{shownName}&rdquo; will disappear from the board. This can&apos;t be undone.
+            &ldquo;{shownName}&rdquo; will disappear from the board and its pending requests
+            will be rejected. This can&apos;t be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

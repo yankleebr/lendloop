@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 const NAV_LINKS = [
   { href: "/tools", label: "All tools" },
   { href: "/tools/mine", label: "My listings" },
+  { href: "/loans/requests", label: "My requests" },
+  { href: "/loans/incoming", label: "Incoming" },
 ] as const;
 
 export function AppHeader() {
@@ -21,7 +23,7 @@ export function AppHeader() {
         </Link>
         <nav
           aria-label="Main"
-          className="order-last -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:w-auto"
+          className="order-last -mx-1 flex w-full gap-0.5 overflow-x-auto [scrollbar-width:none] sm:order-none sm:w-auto sm:gap-1 [&::-webkit-scrollbar]:hidden"
         >
           {NAV_LINKS.map(({ href, label }) => {
             const active = pathname === href;
@@ -31,7 +33,7 @@ export function AppHeader() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors hover:bg-muted",
+                  "rounded-md px-2 py-1.5 text-sm whitespace-nowrap transition-colors hover:bg-muted sm:px-2.5",
                   active ? "bg-muted font-medium text-foreground" : "text-muted-foreground",
                 )}
               >

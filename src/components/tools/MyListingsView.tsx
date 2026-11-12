@@ -6,6 +6,7 @@ import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useToday } from "@/hooks/useToday";
 import type { MyToolItem } from "@/types/tools";
 import { RemoveToolDialog } from "./RemoveToolDialog";
 import { ToolCard } from "./ToolCard";
@@ -14,8 +15,9 @@ import { ToolGridSkeleton } from "./ToolGridSkeleton";
 
 export function MyListingsView() {
   const { user } = useCurrentUser();
+  const today = useToday();
   // "skip" until users.store has created the row (listMine uses requireUser).
-  const tools = useQuery(api.tools.listMine, user ? {} : "skip");
+  const tools = useQuery(api.tools.listMine, user ? { today } : "skip");
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MyToolItem | undefined>(undefined);

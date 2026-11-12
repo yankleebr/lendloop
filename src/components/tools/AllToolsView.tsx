@@ -2,18 +2,24 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
+import { CalendarPlusIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { ToolCategory } from "../../../convex/lib/validators";
+import { RequestLoanDialog, type RequestableTool } from "@/components/loans/RequestLoanDialog";
+import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useToday } from "@/hooks/useToday";
 import { CategoryFilter } from "./CategoryFilter";
 import { ToolCard } from "./ToolCard";
 import { ToolGridSkeleton } from "./ToolGridSkeleton";
 
 export function AllToolsView() {
   const { user } = useCurrentUser();
+  const today = useToday();
   const [category, setCategory] = useState<ToolCategory | undefined>(undefined);
+  const [requesting, setRequesting] = useState<RequestableTool | null>(null);
   // "skip" until users.store has created the row (list uses requireUser).
-  const tools = useQuery(api.tools.list, user ? { category } : "skip");
+  const tools = useQuery(api.tools.list, user ? { category, today } : "skip");
 
   return (
     <>
@@ -40,11 +46,29 @@ export function AllToolsView() {
                 availability={tool.availability}
                 ownerName={tool.owner.name}
                 isMine={tool.isMine}
+                actions={
+                  tool.isMine ? undefined : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRequesting({ _id: tool._id, name: tool.name })}
+                    >
+                      <CalendarPlusIcon data-icon="inline-start" />
+                      Request
+                    </Button>
+                  )
+                }
               />
             </li>
           ))}
         </ul>
       )}
+
+      <RequestLoanDialog
+        tool={requesting}
+        today={today}
+        onOpenChange={(open) => !open && setRequesting(null)}
+      />
     </>
   );
 }

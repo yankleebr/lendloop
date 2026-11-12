@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  loanCloseReasonValidator,
+  loanStatusValidator,
   roleValidator,
   toolCategoryValidator,
   toolConditionValidator,
@@ -30,4 +32,26 @@ export default defineSchema({
   })
     .index("by_active_category", ["isActive", "category"])
     .index("by_owner_active", ["ownerId", "isActive"]),
+
+  // Requested at = _creationTime. Status changes only through transitionLoan (convex/lib/loans.ts).
+  loans: defineTable({
+    toolId: v.id("tools"),
+    borrowerId: v.id("users"),
+    // = tool.ownerId at request time; never drifts because tools.ownerId is never patched
+    lenderId: v.id("users"),
+    // "YYYY-MM-DD", inclusive whole days; endDate >= startDate
+    startDate: v.string(),
+    endDate: v.string(),
+    status: loanStatusValidator,
+    // event timestamps, epoch ms
+    decidedAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
+    returnedAt: v.optional(v.number()),
+    closeReason: v.optional(loanCloseReasonValidator),
+  })
+    .index("by_tool_status_start", ["toolId", "status", "startDate"])
+    .index("by_borrower", ["borrowerId"])
+    .index("by_borrower_status", ["borrowerId", "status"])
+    .index("by_lender", ["lenderId"])
+    .index("by_status_end", ["status", "endDate"]),
 });

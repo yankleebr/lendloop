@@ -1,6 +1,8 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { parseIsoDate, utcToday } from "./dates";
 import { forbidden, invalidArgument, notFound } from "./errors";
+import { closeLoansForRemovedTool } from "./loans";
 import { TOOL_DESCRIPTION_MAX, TOOL_NAME_MAX, TOOL_NAME_MIN } from "./toolRules";
 import type { Availability } from "./validators";
 
@@ -40,22 +42,39 @@ export async function requireOwnedActiveTool(
 }
 
 /**
- * Single path for removing a listing (soft delete). The loans spec adds its
- * rules here (e.g. block during an approved loan); the admin spec reuses it.
+ * Single path for removing a listing (soft delete); the admin spec reuses it.
+ * Blocked (CONFLICT) while the tool has an approved loan; otherwise its
+ * pending requests are auto-rejected (`tool_removed`) in the same transaction.
  */
 export async function deactivateTool(ctx: MutationCtx, tool: Doc<"tools">): Promise<void> {
+  await closeLoansForRemovedTool(ctx, tool._id);
   await ctx.db.patch(tool._id, { isActive: false });
 }
 
 /**
- * Availability is derived from loans at read time. Loans don't exist yet,
- * so every active tool is available; the loans spec changes only this helper.
+ * Derived from loans at read time: `on_loan` when an approved loan has
+ * started (`startDate <= today`) — overdue loans included, since the tool is
+ * still with the borrower. Future approved loans and pending requests don't count.
  */
 export async function getAvailability(
   ctx: QueryCtx,
   tool: Doc<"tools">,
+  today: string,
 ): Promise<Availability> {
-  void ctx;
-  void tool;
-  return "available";
+  const started = await ctx.db
+    .query("loans")
+    .withIndex("by_tool_status_start", (q) =>
+      q.eq("toolId", tool._id).eq("status", "approved").lte("startDate", today),
+    )
+    .first();
+  return started === null ? "available" : "on_loan";
+}
+
+/**
+ * The caller's "today" for availability. Clients pass their local day; the
+ * fallback (server UTC) only keeps older clients working, so `Date.now()` is
+ * read only when the argument is missing.
+ */
+export function resolveToday(today: string | undefined): string {
+  return today === undefined ? utcToday(Date.now()) : parseIsoDate(today, "Today");
 }
