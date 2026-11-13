@@ -34,7 +34,7 @@ npm run test:run   # Vitest (single run)
 | Next.js | `localhost:3000` | Vercel project `lendloop` → https://lendloop-tawny.vercel.app |
 | Convex | dev deployment (`effervescent-squid-656`) | prod deployment (`enchanted-raven-234`) |
 | Clerk | app "LendLoop Dev" (Development instance) | app "LendLoop Prod" (Development instance — `*.vercel.app` cannot host a Clerk Production instance) |
-| n8n Cloud | `[DEV]` workflows + `HMAC DEV` credential | `[PROD]` workflows + `HMAC PROD` credential |
+| n8n Cloud | `[DEV]` workflows (e.g. `[DEV] LendLoop — Loan notifications (WF1)`) + `HMAC DEV` / `Gmail DEV` credentials | `[PROD]` workflows + `HMAC PROD` / `Gmail PROD` credentials |
 
 ### PROD configuration (Vercel dashboard / Convex dashboard)
 
@@ -52,11 +52,13 @@ npm run test:run   # Vitest (single run)
   - `npx convex env set --prod` / `npx convex env list --prod` / any `--prod` Convex command
   - Convex MCP with `--prod` or `--dangerously-enable-production-deployments`
   - Changes to the Clerk app "LendLoop Prod"
-  - Changes to `[PROD]` n8n workflows or the `HMAC PROD` credential
+  - Changes to `[PROD]` n8n workflows or the `HMAC PROD` / `Gmail PROD` credentials
 - Production deploys happen only through Vercel when `main` is pushed (build command: `npx convex deploy --cmd 'npm run build'`).
 
 ## Secrets
 
 - Next.js secrets live in `.env.local` (DEV) and Vercel env vars (PROD). `.env*` is gitignored; `.env.example` lists variable names only.
 - Convex function secrets (`CLERK_JWT_ISSUER_DOMAIN`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`) live in **Convex environment variables**, never in `.env.local` or code.
-- n8n secrets live in **n8n credentials** (Crypto credential for HMAC). Exported workflow JSON in `n8n/workflows/` must never contain secrets.
+  - `N8N_WEBHOOK_URL` = the **Production URL** of the `[DEV]` / `[PROD]` Workflow 1 webhook.
+  - `N8N_WEBHOOK_SECRET` = the same string as the `HMAC DEV` / `HMAC PROD` credential's *Hmac Secret*, ≥ 32 chars, used as UTF-8 bytes (never hex/base64-decoded).
+- n8n secrets live in **n8n credentials** (Crypto credential for HMAC). Gmail access lives only in the n8n credentials `Gmail DEV` / `Gmail PROD` (same dedicated LendLoop Gmail account). Exported workflow JSON in `n8n/workflows/` must never contain secrets.

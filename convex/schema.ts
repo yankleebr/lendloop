@@ -1,7 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  automationKindValidator,
+  automationStatusValidator,
   loanCloseReasonValidator,
+  loanEventTypeValidator,
   loanStatusValidator,
   roleValidator,
   toolCategoryValidator,
@@ -60,4 +63,32 @@ export default defineSchema({
     .index("by_status_end", ["status", "endDate"])
     // admin "all loans" filtered by status, newest first (implicit _creationTime)
     .index("by_status", ["status"]),
+
+  // Outbox + delivery log for n8n automations. Written ONLY by internal code:
+  // emitLoanEvent (inside loan mutations) and notifications.recordAttempt.
+  automationLogs: defineTable({
+    loanId: v.id("loans"),
+    kind: automationKindValidator,
+    // required for kind "notification"; the reminders spec may make it optional
+    event: loanEventTypeValidator,
+    recipientId: v.id("users"),
+    // unique per row, checked in the inserting mutation (Convex has no unique constraint)
+    // notification: `notification:${loanId}:${event}`
+    idempotencyKey: v.string(),
+    status: automationStatusValidator,
+    // delivery attempts processed (0 while the first one is scheduled)
+    attempts: v.number(),
+    // short code only: http_<code> | timeout | network | not_configured | event_budget | internal | loan_missing
+    lastError: v.optional(v.string()),
+    lastStatusCode: v.optional(v.number()),
+    // epoch ms of the loan event (same transaction)
+    occurredAt: v.number(),
+    updatedAt: v.number(),
+    // set while a retry is scheduled
+    nextAttemptAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+  })
+    .index("by_idempotency_key", ["idempotencyKey"])
+    .index("by_loan", ["loanId"])
+    .index("by_kind_status", ["kind", "status"]),
 });

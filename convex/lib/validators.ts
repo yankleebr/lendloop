@@ -35,6 +35,25 @@ export const loanCloseReasonValidator = v.union(
 export const ADMIN_LOAN_FILTERS = ["all", ...LOAN_STATUSES, "overdue"] as const;
 export const adminLoanFilterValidator = v.union(...ADMIN_LOAN_FILTERS.map((f) => v.literal(f)));
 
+/** Notification events: creation → `loan.requested`, transition to `s` → `loan.${s}`. */
+export const LOAN_EVENT_TYPES = [
+  "loan.requested",
+  "loan.approved",
+  "loan.rejected",
+  "loan.cancelled",
+  "loan.returned",
+] as const;
+export const loanEventTypeValidator = v.union(...LOAN_EVENT_TYPES.map((t) => v.literal(t)));
+// The reminders spec appends "reminder" (adding a literal is a safe schema push).
+export const AUTOMATION_KINDS = ["notification"] as const;
+export const automationKindValidator = v.union(...AUTOMATION_KINDS.map((k) => v.literal(k)));
+export const AUTOMATION_STATUSES = ["pending", "sent", "failed"] as const;
+export const automationStatusValidator = v.union(
+  ...AUTOMATION_STATUSES.map((s) => v.literal(s)),
+);
+
+export type LoanEventType = Infer<typeof loanEventTypeValidator>;
+export type AutomationStatus = Infer<typeof automationStatusValidator>;
 export type LoanStatus = Infer<typeof loanStatusValidator>;
 export type AdminLoanFilter = Infer<typeof adminLoanFilterValidator>;
 export type LoanCloseReason = Infer<typeof loanCloseReasonValidator>;

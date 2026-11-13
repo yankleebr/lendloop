@@ -26,10 +26,13 @@ const FIRST_PAGE = { numItems: 20, cursor: null };
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-12T12:00:00Z"));
+  // Scheduled notification deliveries end as `not_configured`: never a real fetch.
+  vi.stubEnv("N8N_WEBHOOK_URL", "");
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllEnvs();
 });
 
 async function errorCode(promise: Promise<unknown>): Promise<string> {

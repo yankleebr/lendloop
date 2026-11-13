@@ -102,7 +102,7 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users`, `tools` and `loans` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md` and `context/features/admin.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users`, `tools`, `loans` and `automationLogs` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md`, `context/features/admin.md` and `context/features/loan-notifications.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
@@ -121,7 +121,15 @@ loans:          { toolId, borrowerId, lenderId, startDate, endDate,
                 // startDate/endDate: "YYYY-MM-DD" strings, inclusive whole days; requested at = _creationTime
                 // lenderId = tool.ownerId at request time; status changes only via transitionLoan
                 // indexes by_tool_status_start, by_borrower, by_borrower_status, by_lender, by_status_end, by_status
-automationLogs: { loanId, kind: "notification" | "reminder", status, idempotencyKey, createdAt }
+automationLogs: { loanId, kind: "notification", event, recipientId, idempotencyKey,
+                  status: "pending" | "sent" | "failed", attempts, lastError?, lastStatusCode?,
+                  occurredAt, updatedAt, nextAttemptAt?, sentAt? }
+                // event: "loan.requested" | "loan.approved" | "loan.rejected" | "loan.cancelled" | "loan.returned"
+                // idempotencyKey: `notification:<loanId>:<event>` (unique, checked on insert)
+                // written only by emitLoanEvent (inside loan mutations) and notifications.recordAttempt
+                // lastError: short code only (http_<code>, timeout, network, not_configured, event_budget, internal, loan_missing)
+                // indexes by_idempotency_key, by_loan, by_kind_status
+                // the reminders spec adds kind "reminder"
 ```
 
 ---

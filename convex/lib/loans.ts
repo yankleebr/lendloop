@@ -9,14 +9,17 @@ import {
   utcToday,
   type Period,
 } from "./dates";
+import { MAX_EVENTS_PER_TRANSACTION } from "./automationRules";
 import { conflict, forbidden, invalidArgument, notFound } from "./errors";
 import { MAX_ADVANCE_DAYS, MAX_LOAN_DAYS } from "./loanRules";
+import { emitLoanEvent } from "./notifications";
 import { missingPublicUser, publicUser, type PublicUser } from "./users";
 import {
   loanCloseReasonValidator,
   loanStatusValidator,
   toolCategoryValidator,
   type LoanCloseReason,
+  type LoanEventType,
   type LoanStatus,
 } from "./validators";
 
@@ -50,14 +53,17 @@ function transitionError(from: LoanStatus, to: LoanStatus): string {
 
 /**
  * The ONLY place that changes `loans.status`. Throws CONFLICT on an invalid
- * transition and stamps the matching event timestamp. The automation spec
- * hooks its notification here (and in loans.request for creation).
+ * transition, stamps the matching event timestamp and emits the `loan.<to>`
+ * notification in the same transaction (loans.request emits `loan.requested`).
+ * `notify: false` records the event as `failed` / `event_budget` without
+ * scheduling it (see closeLoansForRemovedTool).
  */
 export async function transitionLoan(
   ctx: MutationCtx,
   loan: Doc<"loans">,
   to: LoanStatus,
   extra: { closeReason?: LoanCloseReason } = {},
+  opts: { notify?: boolean } = {},
 ): Promise<void> {
   if (!canTransition(loan.status, to)) conflict(transitionError(loan.status, to));
   const now = Date.now();
@@ -68,6 +74,10 @@ export async function transitionLoan(
         ? { cancelledAt: now }
         : { returnedAt: now };
   await ctx.db.patch(loan._id, { status: to, ...stamp, ...extra });
+  await emitLoanEvent(ctx, loan, `loan.${to}` as LoanEventType, {
+    schedule: opts.notify !== false,
+    occurredAt: now,
+  });
 }
 
 // ── Periods and overlaps ────────────────────────────────────────────────────
@@ -130,7 +140,11 @@ async function pendingLoansOfTool(
   return period ? loans.filter((loan) => periodsOverlap(loan, period)) : loans;
 }
 
-/** After approving `approved`, rejects every other pending request of the tool that overlaps it. */
+/**
+ * After approving `approved`, rejects every other pending request of the tool
+ * that overlaps it. Emits at most 1 + MAX_AUTO_CLOSE events per approve, well
+ * under the scheduler budget, so no event counter is needed here.
+ */
 export async function rejectOverlappingPending(
   ctx: MutationCtx,
   approved: Doc<"loans">,
@@ -158,11 +172,20 @@ export async function closeLoansForRemovedTool(
     conflict("Mark the loan as returned (or close it) before removing this tool.");
   }
   // Batches until none is left (each batch leaves the "pending" range), so no
-  // request stays pending on a removed tool.
+  // request stays pending on a removed tool. Past the scheduler budget, events
+  // are still recorded but not delivered (`event_budget`).
+  let events = 0;
   for (;;) {
     const batch = await pendingLoansOfTool(ctx, toolId);
     for (const loan of batch) {
-      await transitionLoan(ctx, loan, "rejected", { closeReason: "tool_removed" });
+      await transitionLoan(
+        ctx,
+        loan,
+        "rejected",
+        { closeReason: "tool_removed" },
+        { notify: events < MAX_EVENTS_PER_TRANSACTION },
+      );
+      events++;
     }
     if (batch.length < MAX_AUTO_CLOSE) return;
   }

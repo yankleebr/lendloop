@@ -19,6 +19,7 @@ import {
   transitionLoan,
   validatePeriod,
 } from "./lib/loans";
+import { emitLoanEvent } from "./lib/notifications";
 import { publicUserValidator } from "./lib/users";
 
 const BOOKED_MESSAGE = "Those dates are already booked.";
@@ -51,7 +52,7 @@ export const request = mutation({
       conflict("You already have a request for these dates.");
     }
 
-    return await ctx.db.insert("loans", {
+    const loanId = await ctx.db.insert("loans", {
       toolId,
       borrowerId: me._id,
       lenderId: tool.ownerId,
@@ -59,6 +60,8 @@ export const request = mutation({
       endDate: period.endDate,
       status: "pending",
     });
+    await emitLoanEvent(ctx, { _id: loanId, borrowerId: me._id, lenderId: tool.ownerId }, "loan.requested");
+    return loanId;
   },
 });
 
