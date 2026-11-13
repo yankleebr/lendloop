@@ -42,13 +42,19 @@ export async function requireOwnedActiveTool(
 }
 
 /**
- * Single path for removing a listing (soft delete); the admin spec reuses it.
- * Blocked (CONFLICT) while the tool has an approved loan; otherwise its
- * pending requests are auto-rejected (`tool_removed`) in the same transaction.
+ * Single path for removing a listing (soft delete), used by the owner
+ * (`tools.remove`) and by admins (`admin.removeTool`). Blocked (CONFLICT) while
+ * the tool has an approved loan; otherwise its pending requests are
+ * auto-rejected (`tool_removed`) in the same transaction. `removedBy` records
+ * who removed it (compare with `ownerId` to tell a moderator removal apart).
  */
-export async function deactivateTool(ctx: MutationCtx, tool: Doc<"tools">): Promise<void> {
+export async function deactivateTool(
+  ctx: MutationCtx,
+  tool: Doc<"tools">,
+  removedBy: Id<"users">,
+): Promise<void> {
   await closeLoansForRemovedTool(ctx, tool._id);
-  await ctx.db.patch(tool._id, { isActive: false });
+  await ctx.db.patch(tool._id, { isActive: false, removedAt: Date.now(), removedBy });
 }
 
 /**

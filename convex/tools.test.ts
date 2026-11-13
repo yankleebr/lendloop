@@ -95,7 +95,8 @@ describe("tools.list", () => {
     const items = await bob.query(api.tools.list, {});
     expect(items.map((i) => i.name)).toEqual(["Drill", "Rake"]);
     for (const item of items) {
-      expect(Object.keys(item.owner).sort()).toEqual(["_id", "name"]);
+      expect(Object.keys(item.owner).sort()).toEqual(["_id", "isTrustedLender", "name"]);
+      expect(item.owner.isTrustedLender).toBe(false);
       expect(item.availability).toBe("available");
     }
     expect(items[0]).toMatchObject({
@@ -278,10 +279,13 @@ describe("tools.update", () => {
 
 describe("tools.remove", () => {
   it("soft-deletes the owner's tool; a second remove is NOT_FOUND", async () => {
-    const { t, alice } = await setup();
+    const { t, alice, aliceId } = await setup();
     const toolId = await alice.mutation(api.tools.create, DRILL);
+    expect(await getTool(t, toolId)).not.toHaveProperty("removedBy");
     await alice.mutation(api.tools.remove, { toolId });
-    expect(await getTool(t, toolId)).toMatchObject({ isActive: false, name: "Drill" });
+    const removed = await getTool(t, toolId);
+    expect(removed).toMatchObject({ isActive: false, name: "Drill", removedBy: aliceId });
+    expect(typeof removed?.removedAt).toBe("number");
     expect(await errorCode(alice.mutation(api.tools.remove, { toolId }))).toBe("NOT_FOUND");
   });
 

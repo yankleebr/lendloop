@@ -45,6 +45,7 @@ export function AllToolsView() {
                 description={tool.description}
                 availability={tool.availability}
                 ownerName={tool.owner.name}
+                ownerTrusted={tool.owner.isTrustedLender}
                 isMine={tool.isMine}
                 actions={
                   tool.isMine ? undefined : (

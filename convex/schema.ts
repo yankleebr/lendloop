@@ -29,6 +29,10 @@ export default defineSchema({
     description: v.string(),
     // false = removed (soft delete); no public path sets it back to true
     isActive: v.boolean(),
+    // set together by deactivateTool (owner or admin removal); absent on active
+    // tools and on tools removed before the admin spec
+    removedAt: v.optional(v.number()),
+    removedBy: v.optional(v.id("users")),
   })
     .index("by_active_category", ["isActive", "category"])
     .index("by_owner_active", ["ownerId", "isActive"]),
@@ -53,5 +57,7 @@ export default defineSchema({
     .index("by_borrower", ["borrowerId"])
     .index("by_borrower_status", ["borrowerId", "status"])
     .index("by_lender", ["lenderId"])
-    .index("by_status_end", ["status", "endDate"]),
+    .index("by_status_end", ["status", "endDate"])
+    // admin "all loans" filtered by status, newest first (implicit _creationTime)
+    .index("by_status", ["status"]),
 });

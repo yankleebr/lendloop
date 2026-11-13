@@ -102,14 +102,17 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users`, `tools` and `loans` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md` and `context/features/loans.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users`, `tools` and `loans` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md` and `context/features/admin.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
 users:          { tokenIdentifier, name, email?, role: "user" | "admin", isTrustedLender }  // index by_token
-tools:          { ownerId, name, category, condition, description, isActive }
+                // other users see only publicUser = { _id, name, isTrustedLender }
+                // isTrustedLender written only by admin.setTrustedLender
+tools:          { ownerId, name, category, condition, description, isActive, removedAt?, removedBy? }
                 // category/condition: fixed enums in convex/lib/validators.ts
                 // isActive: false = removed (soft delete, keeps loan history intact)
+                // removedAt/removedBy: set by deactivateTool (owner or admin removal)
                 // indexes by_active_category, by_owner_active
                 // availability is NOT stored: derived from loans at read time (getAvailability in convex/lib/tools.ts)
 loans:          { toolId, borrowerId, lenderId, startDate, endDate,
@@ -117,7 +120,7 @@ loans:          { toolId, borrowerId, lenderId, startDate, endDate,
                   decidedAt?, cancelledAt?, returnedAt?, closeReason?: "period_taken" | "tool_removed" }
                 // startDate/endDate: "YYYY-MM-DD" strings, inclusive whole days; requested at = _creationTime
                 // lenderId = tool.ownerId at request time; status changes only via transitionLoan
-                // indexes by_tool_status_start, by_borrower, by_borrower_status, by_lender, by_status_end
+                // indexes by_tool_status_start, by_borrower, by_borrower_status, by_lender, by_status_end, by_status
 automationLogs: { loanId, kind: "notification" | "reminder", status, idempotencyKey, createdAt }
 ```
 

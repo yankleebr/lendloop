@@ -11,15 +11,18 @@ import {
   resolveToday,
 } from "./lib/tools";
 import { MAX_BOARD_TOOLS, MAX_OWN_TOOLS } from "./lib/toolRules";
-import { publicUser, publicUserValidator, type PublicUser } from "./lib/users";
+import {
+  missingPublicUser,
+  publicUser,
+  publicUserValidator,
+  type PublicUser,
+} from "./lib/users";
 import {
   availabilityValidator,
   toolCategoryValidator,
   toolConditionValidator,
   type ToolCategory,
 } from "./lib/validators";
-
-const MISSING_OWNER_NAME = "Neighbor";
 
 /** Caller's local "YYYY-MM-DD"; optional so older clients keep working (server UTC fallback). */
 const todayArg = v.optional(v.string());
@@ -98,7 +101,7 @@ export const list = query({
     await Promise.all(
       ownerIds.map(async (id) => {
         const owner = await ctx.db.get(id);
-        owners.set(id, owner ? publicUser(owner) : { _id: id, name: MISSING_OWNER_NAME });
+        owners.set(id, owner ? publicUser(owner) : missingPublicUser(id));
       }),
     );
 
@@ -206,7 +209,7 @@ export const remove = mutation({
   handler: async (ctx, { toolId }) => {
     const me = await requireUser(ctx);
     const tool = await requireOwnedActiveTool(ctx, me, toolId);
-    await deactivateTool(ctx, tool);
+    await deactivateTool(ctx, tool, me._id);
     return null;
   },
 });

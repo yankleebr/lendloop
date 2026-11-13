@@ -4,6 +4,7 @@ import type {
   ToolCategory,
   ToolCondition,
 } from "../../../convex/lib/validators";
+import { TrustedLenderBadge } from "@/components/users/TrustedLenderBadge";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -22,6 +23,7 @@ interface ToolCardProps {
   description: string;
   availability: Availability;
   ownerName?: string;
+  ownerTrusted?: boolean;
   isMine?: boolean;
   actions?: ReactNode;
 }
@@ -33,6 +35,7 @@ export function ToolCard({
   description,
   availability,
   ownerName,
+  ownerTrusted = false,
   isMine = false,
   actions,
 }: ToolCardProps) {
@@ -41,8 +44,9 @@ export function ToolCard({
       <CardHeader>
         <CardTitle className="break-words">{name}</CardTitle>
         {ownerName !== undefined && (
-          <CardDescription className="break-words">
-            Lent by {isMine ? "you" : ownerName}
+          <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 break-words">
+            <span className="min-w-0 break-words">Lent by {isMine ? "you" : ownerName}</span>
+            {ownerTrusted && <TrustedLenderBadge />}
           </CardDescription>
         )}
       </CardHeader>

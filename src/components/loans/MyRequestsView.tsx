@@ -44,6 +44,7 @@ export function MyRequestsView() {
               toolName={loan.tool.name}
               toolRemoved={!loan.tool.isActive}
               counterpart={`Lent by ${loan.lender.name}`}
+              counterpartTrusted={loan.lender.isTrustedLender}
               startDate={loan.startDate}
               endDate={loan.endDate}
               status={loan.status}

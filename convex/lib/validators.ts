@@ -31,7 +31,12 @@ export const loanCloseReasonValidator = v.union(
   v.literal("tool_removed"),
 );
 
+/** Admin "all loans" filter: everything, one status, or overdue (approved + past end date). */
+export const ADMIN_LOAN_FILTERS = ["all", ...LOAN_STATUSES, "overdue"] as const;
+export const adminLoanFilterValidator = v.union(...ADMIN_LOAN_FILTERS.map((f) => v.literal(f)));
+
 export type LoanStatus = Infer<typeof loanStatusValidator>;
+export type AdminLoanFilter = Infer<typeof adminLoanFilterValidator>;
 export type LoanCloseReason = Infer<typeof loanCloseReasonValidator>;
 export type ToolCategory = Infer<typeof toolCategoryValidator>;
 export type ToolCondition = Infer<typeof toolConditionValidator>;

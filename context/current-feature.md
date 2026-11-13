@@ -1,16 +1,36 @@
-# Current Feature
+# Current Feature: Admin — Moderation, All Loans and Trusted Lender
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- Schema pushed to DEV: optional `tools.removedAt` / `removedBy`, new `loans` index `by_status`
+- `convex/admin.ts` with `removeTool`, `listLoans`, `listUsers`, `setTrustedLender` — each starts with `requireAdmin` (signed out → `UNAUTHENTICATED`, plain user → `FORBIDDEN`)
+- `admin.removeTool` reuses `deactivateTool` (same loan rules as the owner: `CONFLICT` with an approved loan, pending → `rejected` + `tool_removed`); `deactivateTool(ctx, tool, removedBy)` writes `removedAt` / `removedBy` for owner and admin removals
+- `admin.listLoans` paginated (`paginate` + `usePaginatedQuery`), filter `all | <status> | overdue` via index only (`by_creation_time` desc, `by_status` desc, `by_status_end` asc), parties as `publicUser`, `isOverdue`, `numItems` clamped to 50
+- `admin.listUsers` paginated, newest first, keys exactly `_creationTime`, `_id`, `isMe`, `isTrustedLender`, `name`, `role` (no email, no `tokenIdentifier`)
+- `admin.setTrustedLender({ userId, isTrusted })` idempotent, admin-only, never touches `role`
+- `publicUser` gains `isTrustedLender`; "Trusted Lender" badge on All tools (owner), My requests (lender) and admin views; `tools.listPublic` unchanged
+- `/admin` (→ `/admin/loans`), `/admin/loans`, `/admin/listings`, `/admin/users`, each with `await auth.protect()`; client `AdminGate` ("Admins only" for non-admins); Admin nav link only for admins
+- Confirm dialogs, toasts, loading/empty/error states, 375px layout; no role editing in the UI
+- convex-test coverage per spec *Testing*; existing projection assertions updated to `["_id", "isTrustedLender", "name"]`
+- No new npm package or shadcn component; `lint`, `test:run`, `build` pass; auth-auditor with no critical/high findings
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- Spec: `context/features/admin.md` (Decisions 1–9)
+- Admin removal is **not forced** during an approved loan (Decision 1); loans keep `closeReason: "tool_removed"`, who removed it lives on the tool (Decision 2)
+- One `.paginate()` per function (convex-test limitation); `loadLoanRefs` on the page only; no `.filter`
+- Gate is UX only (Decision 6): admin queries `"skip"` until `role === "admin"`; `auth.protect()` stays in each `page.tsx`
+- Deviation from spec: `AdminGate` (+ `AdminNav`) is rendered inside each admin `page.tsx`, not in an `admin/layout.tsx` — a layout that conditionally drops `{children}` triggers the Next.js 16 "could not validate instant navigation" insight (segment dropped from rendering)
+- Deviation from spec: admin loan card shows "Lent by Alice" + Trusted badge and "Borrowed by Bob · Requested …" in `meta` (instead of "Alice → Bob"), so the badge clearly belongs to the lender; `ADMIN_LOAN_FILTERS` lives in `convex/lib/validators.ts` (avoids a circular import); "Remove trusted" confirm reuses `LoanActionDialog`
+- auth-auditor: no critical/high/medium; fixed L1 (`clampPage` NaN → default page size)
+- Plain `requireAdmin(ctx)` helper, no `convex-helpers` (Decision 7)
+- Sub-routes + cards, no `Tabs` / `Table` / `Switch` (Decision 9); `LoanCard` gains `counterpartTrusted?` and `meta?`; `ToolCard` gains `ownerTrusted?`
+- Update `context/project-overview.md` data model
+- PROD: optional fields + new index, additive `publicUser` change; on rollback keep `removedAt` / `removedBy` in the schema if any PROD tool was removed after deploy
 
 ## History
 

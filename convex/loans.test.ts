@@ -519,7 +519,7 @@ describe("listMyRequests / listIncoming", () => {
 
     const bobs = await s.bob.query(api.loans.listMyRequests, { today: TODAY });
     expect(bobs).toHaveLength(1);
-    expect(Object.keys(bobs[0].lender).sort()).toEqual(["_id", "name"]);
+    expect(Object.keys(bobs[0].lender).sort()).toEqual(["_id", "isTrustedLender", "name"]);
     expect(bobs[0]).toMatchObject({
       lender: { _id: s.aliceId, name: "Alice" },
       tool: { _id: s.toolId, name: "Drill", isActive: true },
@@ -531,7 +531,9 @@ describe("listMyRequests / listIncoming", () => {
 
     const incoming = await s.alice.query(api.loans.listIncoming, { today: TODAY });
     expect(incoming.map((i) => i.borrower.name)).toEqual(["Dave", "Bob"]); // newest first
-    for (const item of incoming) expect(Object.keys(item.borrower).sort()).toEqual(["_id", "name"]);
+    for (const item of incoming) {
+      expect(Object.keys(item.borrower).sort()).toEqual(["_id", "isTrustedLender", "name"]);
+    }
 
     expect(await s.alice.query(api.loans.listMyRequests, { today: TODAY })).toEqual([]);
     expect(await s.bob.query(api.loans.listIncoming, { today: TODAY })).toEqual([]);

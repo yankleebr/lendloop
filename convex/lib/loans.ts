@@ -11,7 +11,7 @@ import {
 } from "./dates";
 import { conflict, forbidden, invalidArgument, notFound } from "./errors";
 import { MAX_ADVANCE_DAYS, MAX_LOAN_DAYS } from "./loanRules";
-import { publicUser, type PublicUser } from "./users";
+import { missingPublicUser, publicUser, type PublicUser } from "./users";
 import {
   loanCloseReasonValidator,
   loanStatusValidator,
@@ -25,7 +25,6 @@ import {
  * Pending requests per tool are naturally small; this only guards the write budget.
  */
 export const MAX_AUTO_CLOSE = 500;
-const MISSING_USER_NAME = "Neighbor";
 const MISSING_TOOL_NAME = "Removed tool";
 
 // ── Status machine ──────────────────────────────────────────────────────────
@@ -255,7 +254,7 @@ export async function loadLoanRefs(ctx: QueryCtx, loans: Doc<"loans">[]) {
     }),
     ...userIds.map(async (id) => {
       const user = await ctx.db.get(id);
-      users.set(id, user ? publicUser(user) : { _id: id, name: MISSING_USER_NAME });
+      users.set(id, user ? publicUser(user) : missingPublicUser(id));
     }),
   ]);
   return { tools, users };
