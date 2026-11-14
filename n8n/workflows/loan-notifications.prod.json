@@ -1,0 +1,394 @@
+{
+  "name": "[PROD] LendLoop — Loan notifications (WF1)",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\":true}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1296,
+        64
+      ],
+      "id": "673185ea-a723-46c1-b94b-7c74d92be207",
+      "name": "200"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\":\"bad request\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        608,
+        16
+      ],
+      "id": "17877eac-0155-4985-b543-f4206afeba6a",
+      "name": "400"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\":\"invalid signature\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        608,
+        -112
+      ],
+      "id": "29c02bcc-6429-4e55-8e08-987f415f603f",
+      "name": "401"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "6eb933d6-b9fa-4628-a897-e7f7dbbdf2c7",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -512,
+        0
+      ],
+      "id": "fdf70721-03e6-4e71-995d-e18554c4aebd",
+      "name": "LendLoop event",
+      "webhookId": "6eb933d6-b9fa-4628-a897-e7f7dbbdf2c7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nlet rawBody = '';\ntry {\n  rawBody = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\n} catch {\n  rawBody = '';\n}\nconst headers = item.json.headers ?? {};\nconst timestamp = String(headers['x-lendloop-timestamp'] ?? '');\nreturn [{\n  json: {\n    timestamp,\n    signatureHeader: String(headers['x-lendloop-signature'] ?? ''),\n    signedPayload: `${timestamp}.${rawBody}`,\n    rawBody,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        0
+      ],
+      "id": "dacd750a-4a54-43c4-9fcf-b849527b7b50",
+      "name": "Prepare signed string"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "value": "={{ $json.signedPayload }}",
+        "dataPropertyName": "expectedHex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "df74ad8c-b881-4cdb-aeef-e4ce8ed673bf",
+      "name": "HMAC ",
+      "credentials": {
+        "crypto": {
+          "id": "T4J1bzbFnspGnxjj",
+          "name": "HMAC PROD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const { timingSafeEqual } = require('crypto');\nconst TOLERANCE_SEC = 300;\nconst TYPES = ['loan.requested', 'loan.approved', 'loan.rejected', 'loan.cancelled', 'loan.returned'];\nconst { timestamp, signatureHeader, rawBody, expectedHex } = $input.first().json;\nconst reject = (status) => [{ json: { valid: false, status } }];\n\nif (!/^\\d+$/.test(timestamp) || !expectedHex) return reject(401);\nconst expected = Buffer.from(`v1=${expectedHex}`, 'utf8');\nconst matches = signatureHeader\n  .split(' ')\n  .filter((sig) => sig.startsWith('v1='))\n  .some((sig) => {\n    const provided = Buffer.from(sig, 'utf8');\n    return provided.length === expected.length && timingSafeEqual(provided, expected);\n  });\nif (!matches) return reject(401);\nif (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > TOLERANCE_SEC) return reject(401);\n\nlet event;\ntry {\n  event = JSON.parse(rawBody);\n} catch {\n  return reject(400);\n}\nif (event?.version !== 1 || !event.eventId || !TYPES.includes(event.type) || !event.recipient) {\n  return reject(400);\n}\nreturn [{ json: { valid: true, status: 200, event } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "8bd839ce-a249-49ca-8249-25e184462a90",
+      "name": "Verify"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": 401,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "dadca8bf-1e28-48d1-a28c-abfb3c395ebc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "401"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "ef77309e-6c8c-43c4-8993-0b2b01b2bafe",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": 400,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "400"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        384,
+        0
+      ],
+      "id": "52a93e88-e71c-4907-972b-657c60d4f221",
+      "name": "Valid?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json.event;\nconst PREFIX = '';\nconst oneLine = (s) => String(s).replace(/[\\r\\n]+/g, ' ');\nconst tool = e.tool.name;\nconst me = e.recipient.name;\nconst other = e.counterpart.name;\nconst period = `${e.loan.startDate} → ${e.loan.endDate}`;\n\nfunction rejectedText() {\n  if (e.loan.closeReason === 'period_taken') {\n    return `Hi ${me}, your request for ${tool} (${period}) was not approved: those dates were given to another neighbor.`;\n  }\n  if (e.loan.closeReason === 'tool_removed') {\n    const by = e.loan.removedByModerator ? ' by a moderator' : '';\n    return `Hi ${me}, your request for ${tool} (${period}) was closed because the listing was removed${by}.`;\n  }\n  return `Hi ${me}, ${other} rejected your request for ${tool} (${period}).`;\n}\n\nconst templates = {\n  'loan.requested': [\n    `${other} wants to borrow your ${tool}`,\n    `Hi ${me}, ${other} asked to borrow your ${tool} from ${e.loan.startDate} to ${e.loan.endDate}. Open LendLoop → Incoming requests to approve or reject.`,\n  ],\n  'loan.approved': [\n    `Your request for ${tool} was approved`,\n    `Hi ${me}, ${other} approved your request for ${tool} (${period}).`,\n  ],\n  'loan.rejected': [`Your request for ${tool} was not approved`, rejectedText()],\n  'loan.cancelled': [\n    `${other} cancelled a request for your ${tool}`,\n    `Hi ${me}, ${other} cancelled the request for ${tool} (${period}).`,\n  ],\n  'loan.returned': [\n    `${tool} marked as returned`,\n    `Hi ${me}, ${other} confirmed that ${tool} was returned. Thanks for borrowing responsibly!`,\n  ],\n};\n\nconst [subject, text] = templates[e.type];\nreturn [{\n  json: {\n    channel: 'mock',\n    eventId: e.eventId,\n    type: e.type,\n    recipientId: e.recipient._id,\n    to: e.recipient.email ?? '',\n    subject: oneLine(PREFIX + subject),\n    text,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        160
+      ],
+      "id": "96d54474-d499-4d9b-a284-d306fa740b5e",
+      "name": "Mock notify"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "fc4a6097-691e-4d3b-b915-aa0105c2a8d8",
+              "leftValue": "={{ $json.to }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        848,
+        160
+      ],
+      "id": "b18c7556-9150-4748-beec-bb491c9637de",
+      "name": "Has email?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "LendLoop"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        64
+      ],
+      "id": "19caddd8-a5e3-4bfd-87ba-ccfeef6ca31e",
+      "name": "Send email",
+      "webhookId": "631fdf66-b1a3-4ca3-95f0-0caf41a92ab9",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "D7lvpdzNLcrg8RFb",
+          "name": "Gmail PROD"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "LendLoop event": {
+      "main": [
+        [
+          {
+            "node": "Prepare signed string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare signed string": {
+      "main": [
+        [
+          {
+            "node": "HMAC ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HMAC ": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "401",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "400",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mock notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock notify": {
+      "main": [
+        [
+          {
+            "node": "Has email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has email?": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        [
+          {
+            "node": "200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "e0f33824-6fb7-4c04-9a01-3c6298bcc818",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b843028245e1c25db63114292c803d53ac51d71a0bc4c5b52e536520e04cf1ba"
+  },
+  "nodeGroups": [],
+  "id": "7h57dI4YDcQU1xoI",
+  "tags": []
+}
