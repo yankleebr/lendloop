@@ -1,0 +1,97 @@
+{
+  "name": "[PROD] LendLoop — Error handler (WF3)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        96
+      ],
+      "id": "e764e27b-dab7-438d-b3fd-91218aa5b169",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst workflowName = String(data.workflow?.name ?? 'unknown workflow');\nconst exec = data.execution;\nconst oneLine = (s) => String(s ?? '').replace(/[\\r\\n]+/g, ' ').trim();\nconst truncate = (s, n) => (s.length > n ? s.slice(0, n) + '…' : s);\n\nconst message = truncate(oneLine(exec ? exec.error?.message : data.trigger?.error?.message) || 'no message', 300);\n\nconst lines = [\n  `Workflow: ${workflowName}`,\n  `Execution: ${exec?.id ?? 'n/a (trigger failed)'}`,\n  `URL: ${exec?.url ?? 'n/a'}`,\n  `Failed node: ${exec?.lastNodeExecuted ?? 'trigger'}`,\n  `Mode: ${exec?.mode ?? data.trigger?.mode ?? 'unknown'}`,\n  '',\n  `Error: ${message}`,\n  '',\n  '— LendLoop automation',\n];\n\nreturn [{\n  json: {\n    subject: truncate(`n8n workflow failed: ${oneLine(workflowName)}`, 150),\n    text: lines.join('\\n'),\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        96
+      ],
+      "id": "6c1ce917-b02f-4737-a510-d13a5c581552",
+      "name": "Format alert"
+    },
+    {
+      "parameters": {
+        "sendTo": "operator@example.invalid",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "LendLoop"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -64
+      ],
+      "id": "46e5ff79-8538-4468-83a6-f02c52c96f75",
+      "name": "Alert operator",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "webhookId": "23bb3070-ed8c-4518-ae2b-8b08f0edd3b3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "D7lvpdzNLcrg8RFb",
+          "name": "Gmail PROD"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format alert": {
+      "main": [
+        [
+          {
+            "node": "Alert operator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5e938975-3112-44f4-90b6-67917fdf4a40",
+  "meta": {
+    "instanceId": "b843028245e1c25db63114292c803d53ac51d71a0bc4c5b52e536520e04cf1ba"
+  },
+  "nodeGroups": [],
+  "id": "0av29fkKzmApN1vX",
+  "tags": []
+}

@@ -1,0 +1,510 @@
+{
+  "name": "[PROD] LendLoop — Overdue reminders (WF2)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -432,
+        64
+      ],
+      "id": "da30052a-68fe-48b6-a2b1-63c5f8d8a431",
+      "name": "Daily 09:00"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = JSON.stringify({ version: 1, type: 'overdue.list' });\nconst timestamp = String(Math.floor(Date.now() / 1000));\nreturn [{ json: { body, timestamp, signedPayload: `${timestamp}.${body}` } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        64
+      ],
+      "id": "5de6f9e0-8f57-44cc-86d8-a9630af7ebba",
+      "name": "Build list request"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.signedPayload }}",
+        "dataPropertyName": "signature",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        16,
+        64
+      ],
+      "id": "42863271-a2cc-4724-96d8-38d3b942ce43",
+      "name": "Sign list",
+      "credentials": {
+        "crypto": {
+          "id": "JbsW3nKZ8HxsGYkL",
+          "name": "HMAC INBOUND PROD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://enchanted-raven-234.convex.site/n8n/v1/overdue-loans",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-LendLoop-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-LendLoop-Signature",
+              "value": "=v1={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        64
+      ],
+      "id": "57122998-0421-47b2-9260-01bfe4c82f35",
+      "name": "Fetch overdue",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nif (r.version !== 1 || typeof r.today !== 'string' || !Array.isArray(r.loans)) {\n  throw new Error('Unexpected overdue response');\n}\nreturn r.loans.map((l) => ({ json: { ...l, reminderDate: r.today, truncated: r.truncated } }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        64
+      ],
+      "id": "676b7ed1-2e00-492f-8f38-e0e468c98916",
+      "name": "Split loans"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b7f6f0e-7a51-4d7e-9a43-2f1d6c1a1006",
+              "leftValue": "={{ $json.borrowerEmail }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        64
+      ],
+      "id": "28e74cd7-f62a-4ab5-b18e-d1791c59c9d4",
+      "name": "Has email?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.borrowerEmail }}",
+        "subject": "=Reminder: please return {{ $json.toolName }}",
+        "emailType": "text",
+        "message": "=Hi {{ $json.borrowerName }},\n\nThe {{ $json.toolName }} you borrowed was due back on {{ $json.endDate }} ({{ $json.daysOverdue }} day(s) ago).\nPlease return it to its owner and ask them to mark it as returned in LendLoop.\n\n— LendLoop",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "LendLoop"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        912,
+        -64
+      ],
+      "id": "cfa8e1c8-21bd-48f0-a6cf-d4095c528e95",
+      "name": "Send reminder",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "webhookId": "091f4ba4-de6a-47b0-aee8-be90a20fd24b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "D7lvpdzNLcrg8RFb",
+          "name": "Gmail PROD"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const l = $('Split loans').item.json;\nreturn { json: { loanId: l.loanId, reminderDate: l.reminderDate, status: 'sent', error: null } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        -160
+      ],
+      "id": "1a6e7d02-fd60-4cf9-806d-57e6f980fcc0",
+      "name": "Mark sent"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const l = $('Split loans').item.json;\nreturn { json: { loanId: l.loanId, reminderDate: l.reminderDate, status: 'failed', error: 'email_failed' } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        16
+      ],
+      "id": "787d472f-ca79-40c5-9786-43d17b572e7e",
+      "name": "Mark email failed"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const l = $('Split loans').item.json;\nreturn { json: { loanId: l.loanId, reminderDate: l.reminderDate, status: 'failed', error: 'no_email' } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        208
+      ],
+      "id": "2e0db10a-90c7-4cf0-9e42-e9b28af0a5d0",
+      "name": "Mark no email"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1392,
+        16
+      ],
+      "id": "3554f717-c5cf-4c88-b375-dd344337d48a",
+      "name": "Collect results"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = JSON.stringify({\n  version: 1,\n  type: 'reminder.report',\n  loanId: $json.loanId,\n  reminderDate: $json.reminderDate,\n  status: $json.status,\n  error: $json.error,\n});\nconst timestamp = String(Math.floor(Date.now() / 1000));\nreturn { json: { loanId: $json.loanId, body, timestamp, signedPayload: `${timestamp}.${body}` } };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        16
+      ],
+      "id": "5656e18c-ebd8-4440-ba50-b51bb7916247",
+      "name": "Build report"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.signedPayload }}",
+        "dataPropertyName": "signature",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        16
+      ],
+      "id": "927337f8-8d35-494a-a44e-2b60d8683484",
+      "name": "Sign report",
+      "credentials": {
+        "crypto": {
+          "id": "JbsW3nKZ8HxsGYkL",
+          "name": "HMAC INBOUND PROD"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://enchanted-raven-234.convex.site/n8n/v1/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-LendLoop-Timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "X-LendLoop-Signature",
+              "value": "=v1={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2048,
+        16
+      ],
+      "id": "22b4f547-99a9-4f6f-8adb-f74790e73657",
+      "name": "Report result",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "errorMessage": "=Reminder report failed for {{ $('Build report').item?.json?.loanId ?? 'unknown loan' }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        128
+      ],
+      "id": "a47af37a-5e51-4270-8e9e-02e155687556",
+      "name": "Report failed"
+    }
+  ],
+  "connections": {
+    "Daily 09:00": {
+      "main": [
+        [
+          {
+            "node": "Build list request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build list request": {
+      "main": [
+        [
+          {
+            "node": "Sign list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign list": {
+      "main": [
+        [
+          {
+            "node": "Fetch overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch overdue": {
+      "main": [
+        [
+          {
+            "node": "Split loans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split loans": {
+      "main": [
+        [
+          {
+            "node": "Has email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has email?": {
+      "main": [
+        [
+          {
+            "node": "Send reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark no email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark email failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark sent": {
+      "main": [
+        [
+          {
+            "node": "Collect results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark email failed": {
+      "main": [
+        [
+          {
+            "node": "Collect results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Mark no email": {
+      "main": [
+        [
+          {
+            "node": "Collect results",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Collect results": {
+      "main": [
+        [
+          {
+            "node": "Build report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report": {
+      "main": [
+        [
+          {
+            "node": "Sign report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign report": {
+      "main": [
+        [
+          {
+            "node": "Report result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report result": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Report failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "0av29fkKzmApN1vX",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "e9277a97-847a-4c9f-87d2-89455e64b574",
+  "meta": {
+    "instanceId": "b843028245e1c25db63114292c803d53ac51d71a0bc4c5b52e536520e04cf1ba"
+  },
+  "nodeGroups": [],
+  "id": "ZYJCa5rE8ax59Dp5",
+  "tags": []
+}

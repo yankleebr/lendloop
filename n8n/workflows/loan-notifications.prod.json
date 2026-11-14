@@ -381,7 +381,8 @@
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "all",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
+    "availableInMCP": false,
+    "errorWorkflow": "0av29fkKzmApN1vX"
   },
   "versionId": "e0f33824-6fb7-4c04-9a01-3c6298bcc818",
   "meta": {
