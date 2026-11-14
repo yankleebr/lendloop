@@ -10,12 +10,23 @@ import {
 } from "./automationRules";
 import { missingPublicUser, publicUser, publicUserValidator } from "./users";
 import {
+  LOAN_EVENT_TYPES,
   loanCloseReasonValidator,
   loanEventTypeValidator,
   type LoanEventType,
 } from "./validators";
 
 type LoanParties = Pick<Doc<"loans">, "_id" | "borrowerId" | "lenderId">;
+
+/** A Workflow 1 row: kind "notification" with a loan.<status> event. */
+export type NotificationLog = Doc<"automationLogs"> & { kind: "notification"; event: LoanEventType };
+
+/** Narrows an automationLogs row to a notification (reminder rows are never delivered). */
+export function isNotificationLog(log: Doc<"automationLogs">): log is NotificationLog {
+  return (
+    log.kind === "notification" && (LOAN_EVENT_TYPES as readonly string[]).includes(log.event)
+  );
+}
 
 // ── Event catalog ───────────────────────────────────────────────────────────
 
@@ -98,7 +109,7 @@ export type NotificationPayload = Infer<typeof notificationPayloadValidator>;
  * is included (email is the channel); the counterpart is `publicUser` only.
  */
 export function buildPayload(
-  log: Doc<"automationLogs">,
+  log: NotificationLog,
   loan: Doc<"loans">,
   tool: Doc<"tools">,
   recipient: Doc<"users"> | null,

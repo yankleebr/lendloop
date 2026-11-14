@@ -28,7 +28,7 @@ import {
  * Pending requests per tool are naturally small; this only guards the write budget.
  */
 export const MAX_AUTO_CLOSE = 500;
-const MISSING_TOOL_NAME = "Removed tool";
+export const MISSING_TOOL_NAME = "Removed tool";
 
 // ── Status machine ──────────────────────────────────────────────────────────
 

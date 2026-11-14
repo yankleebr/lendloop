@@ -44,15 +44,22 @@ export const LOAN_EVENT_TYPES = [
   "loan.returned",
 ] as const;
 export const loanEventTypeValidator = v.union(...LOAN_EVENT_TYPES.map((t) => v.literal(t)));
-// The reminders spec appends "reminder" (adding a literal is a safe schema push).
-export const AUTOMATION_KINDS = ["notification"] as const;
+export const AUTOMATION_KINDS = ["notification", "reminder"] as const;
 export const automationKindValidator = v.union(...AUTOMATION_KINDS.map((k) => v.literal(k)));
+/** automationLogs.event: notification events + the reminder event. */
+export const AUTOMATION_EVENTS = [...LOAN_EVENT_TYPES, "loan.overdue"] as const;
+export const automationEventValidator = v.union(...AUTOMATION_EVENTS.map((e) => v.literal(e)));
+/** Why n8n could not send a reminder (reported by Workflow 2). */
+export const REMINDER_ERROR_CODES = ["email_failed", "no_email"] as const;
+export const reminderErrorValidator = v.union(...REMINDER_ERROR_CODES.map((c) => v.literal(c)));
 export const AUTOMATION_STATUSES = ["pending", "sent", "failed"] as const;
 export const automationStatusValidator = v.union(
   ...AUTOMATION_STATUSES.map((s) => v.literal(s)),
 );
 
 export type LoanEventType = Infer<typeof loanEventTypeValidator>;
+export type AutomationEvent = Infer<typeof automationEventValidator>;
+export type ReminderError = Infer<typeof reminderErrorValidator>;
 export type AutomationStatus = Infer<typeof automationStatusValidator>;
 export type LoanStatus = Infer<typeof loanStatusValidator>;
 export type AdminLoanFilter = Infer<typeof adminLoanFilterValidator>;

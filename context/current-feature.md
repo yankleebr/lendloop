@@ -1,16 +1,61 @@
-# Current Feature
+# Current Feature: Overdue Reminders (n8n WF2 + WF3, DEV)
+
+Spec: `context/features/overdue-reminders.md`
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- `convex/http.ts` exposes exactly `POST /n8n/v1/overdue-loans` and `POST /n8n/v1/reminders`; other methods → 405 + `Allow: POST`; unknown paths → Convex default 404
+- Inbound pipeline (`convex/lib/inbound.ts` `readSignedJson`): missing/short `N8N_INBOUND_SECRET` → 503 before reading the body; non-JSON content type → 415; > 2,048 bytes → 413; missing/malformed/wrong/stale (±300 s) signature → 401 via `verifyWebhookSignature` **before** `JSON.parse` and any `runQuery`/`runMutation`; strict shape → 400; unexpected → 500. Fixed generic JSON bodies, logs with ids/codes only
+- Separate inbound secret: a signature made with `N8N_WEBHOOK_SECRET` is rejected
+- Overdue list (`reminders.listOverdueForReminders`, internalQuery): `approved` loans with `endDate < server UTC today`, oldest first, ≤ 50, `truncated` flag; skips loans with a `sent` reminder today or ≥ 7 reminder days; includes `failed`-today loans; items exactly `loanId`, `toolName`, `borrowerName`, `borrowerEmail` (own, or `null`), `endDate`, `daysOverdue`
+- Report (`reminders.recordReminder`, internalMutation): one `automationLogs` row per `reminder:<loanId>:<reminderDate>`; `sent` never regresses, `failed` → `sent` upgrade, `failed` + `failed` increments `attempts`; 404 unknown loan; 409 not overdue on that date (Decision 8); 400 date not today/yesterday (UTC) or bad shape
+- Reminder rows: `kind: "reminder"`, `event: "loan.overdue"`, `recipientId` = borrower, `reminderDate`, never `pending`, never delivered; `notifications.getDelivery` / `recordAttempt` ignore non-`notification` rows; WF1 unaffected
+- No public `api.reminders`; no new npm package / component / UI change / Convex cron
+- n8n `[DEV]` WF2 (explicit `America/Sao_Paulo` timezone, raw-body signing with `HMAC INBOUND DEV`, retries, error outputs, Stop and Error) published; `[DEV]` WF3 (Error Trigger → operator email via `Gmail DEV`) set as error workflow of WF1 and WF2; error email arrives from a scheduled failing run
+- Sanitized exports: `overdue-reminders.dev.json`, `error-handler.dev.json`, updated `loan-notifications.dev.json` (credential refs only, no `pinData`, operator address → `operator@example.invalid`)
+- Docs updated: `CLAUDE.md`, `.env.example`, `context/project-overview.md`, webhook-auditor context line
+- convex-test coverage via `t.fetch` + pure helper tests + n8n-compatible HMAC vector; webhook-auditor no critical/high; `lint`, `test:run`, `build` pass; no `--prod` command run
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- **DEV only.** On the next `main` push the routes go live in Convex prod without `N8N_INBOUND_SECRET` → 503 before reading the body. PROD steps (`HMAC INBOUND PROD`, `[PROD]` WF2/WF3, prod env var) only when the user asks
+- **User prerequisites before implementation:** new random inbound secret → n8n Crypto credential `HMAC INBOUND DEV` + Convex DEV env `N8N_INBOUND_SECRET` (same string, byte for byte, ≥ 32 chars, UTF-8, never decoded); operator address = dedicated LendLoop Gmail account; confirm DEV HTTP Actions URL `https://effervescent-squid-656.convex.site`
+- **Signing (Decision 2):** same scheme as WF1 (`v1=<hex>` HMAC-SHA256 over `` `${ts}.${rawBody}` ``); `type` in the signed body binds each signature to one operation. n8n must build the body string once and send it with *Body Content Type = Raw* (never JSON)
+- **Today (Decision 3):** Convex computes `utcToday(Date.now())` in the httpAction; the list returns `today`, n8n echoes it as `reminderDate`; accepted `reminderDate` = today or yesterday (UTC). Schedule 09:00 `America/Sao_Paulo`
+- **Cap (Decision 4):** `MAX_REMINDER_DAYS = 7` counting reminder rows of any status; constants in `convex/lib/automationRules.ts`: `MAX_INBOUND_BODY_BYTES = 2_048`, `MAX_OVERDUE_SCAN = 200`, `MAX_REMINDERS_PER_RUN = 50`, `MAX_REMINDER_DAYS = 7`, `MAX_LOAN_LOG_SCAN = 50`
+- **Schema:** `AUTOMATION_KINDS` + `"reminder"`, `automationLogs.event` → `automationEventValidator` (`LOAN_EVENT_TYPES` + `"loan.overdue"`), optional `reminderDate`, `REMINDER_ERROR_CODES` `email_failed` / `no_email`. Additive, no migration, no new index
+- **405 routes:** Convex router returns 404 for an unmatched method, so register `GET`/`PUT`/`PATCH`/`DELETE`/`OPTIONS` → 405 explicitly. No CORS
+- **Replay:** timestamp window only (no nonce store); idempotency key absorbs replays
+- **DEV overdue data:** edit an approved loan's `startDate`/`endDate` into the past in the Convex dashboard *Data* tab (no seed mutation); tests use `insertLoan` + fake `Date`
+- **Tests:** `signedPost` helper with `t.fetch`; `vi.stubEnv("N8N_INBOUND_SECRET", …)`, `vi.stubEnv("N8N_WEBHOOK_URL", "")`; verify `vi.stubEnv` reaches the httpAction; order proofs (bad signature + bad body → 401, not 400/404; no rows written)
+- Re-check `httpAction` / `t.fetch` details with Context7 while implementing
+- Rollback caveat: reverting the schema narrowing fails if `reminder` rows exist in PROD — keep the widened schema
+- Out of scope: automation activity UI (bonus spec), resending failed WF1 notifications, lender reminders/escalation, Convex cron, nonce store, response signing, DEV seed mutation, any PROD change
+
+### Implementation notes (deviations / gotchas)
+
+- **WF2 Merge node:** a Merge (Append, 3 inputs) `Collect results` sits between `Mark sent` / `Mark email failed` / `Mark no email` and `Build report`. With execution order v1 n8n finishes one branch before starting the next, so without it a failed report in the first branch would hit Stop and Error before the other branches reported. Verified in DEV (partial failure: both reports recorded)
+- `Report failed` reads `loanId` from `$('Build report').item` (the HTTP error-output item may not carry it)
+- WF2 was built by importing a JSON generated by Claude (paste into the canvas), then selecting credentials
+- **Gotcha:** n8n Cloud lists a workflow under *Settings → Error workflow* only after it is **published** (docs say an error workflow doesn't need publishing). WF3 is published; it has no trigger of its own, so this is harmless
+- **Gotcha:** the Crypto node's credential field only appears with Action = **Hmac** (Hash has no secret)
+- **Gotcha:** n8n auto-selects a Crypto credential on paste — check both Sign nodes use `HMAC INBOUND DEV`, not `HMAC DEV`
+- Manual check 4 (replayed report) skipped by the user: covered by the convex-test idempotency cases
+- Manual check 9 used a temporarily broken `Fetch overdue` URL (404 × 3) instead of a wrong `N8N_INBOUND_SECRET`: same effect, no secret handling. WF3 email received (`Mode: trigger`, failed node `Fetch overdue`); rule and URL restored
+- DEV test data: overdue loans were set by editing `status` / `startDate` / `endDate` in the dashboard (approving a past period on the same tool conflicts with the existing approved loan)
+
+### webhook-auditor (no critical/high)
+
+- **M1 (mitigated):** loans at the 7-day cap stay in the oldest-first 200-loan scan window until returned, so ≥ 200 capped loans would starve newer ones. Added `console.warn("reminders: overdue scan saturated (<n> eligible)")` when the scan is full and fewer than 50 loans are eligible (+ tests). Full fix (cursor paging over `by_status_end`) deferred
+- **M2 (accepted):** n8n's *Retry On Fail* likely does not run on nodes with *On Error: Continue (using error output)*. Gmail: a transient error becomes `email_failed` (a same-day re-run retries it). Report: a transient error fails the run (WF3 alert) and the borrower may be reminded again next day
+- **L5 (fixed):** `toolName` / `borrowerName` sent to n8n go through `toEmailText` (control, line-separator, zero-width and bidi characters → one space; empty → fallback name)
+- Crypto nodes in the WF2 export now state `type: SHA256` / `encoding: hex` explicitly (n8n may omit defaults again on the next export)
+- **Accepted:** L1 report timestamps can age past 300 s in a heavily degraded run (→ 401, WF3 alert); L2 a lost report means a second email (spec Failure Matrix); L3 chunked bodies are read before the size check (bounded by Convex limits); L4 `inbound: not_configured` warn per request in PROD until the PROD secret exists; L6 `meta.instanceId` / `webhookId` kept in exports (not secrets)
+- `no_email` branch covered by unit tests only (not exercised end to end)
 
 ## History
 

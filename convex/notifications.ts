@@ -12,6 +12,7 @@ import {
   classifyResponse,
   counterpartFor,
   deliveryOutcomeValidator,
+  isNotificationLog,
   notificationPayloadValidator,
   readWebhookConfig,
   retryDelayMs,
@@ -22,7 +23,10 @@ import {
 
 const USER_AGENT = "LendLoop-Webhooks/1";
 
-/** Pending delivery with its rebuilt payload; null when the row is gone or no longer pending. */
+/**
+ * Pending delivery with its rebuilt payload; null when the row is gone, no
+ * longer pending, or not a notification (reminder rows are never delivered).
+ */
 export const getDelivery = internalQuery({
   args: { logId: v.id("automationLogs") },
   returns: v.union(
@@ -31,7 +35,7 @@ export const getDelivery = internalQuery({
   ),
   handler: async (ctx, { logId }) => {
     const log = await ctx.db.get(logId);
-    if (log === null || log.status !== "pending") return null;
+    if (log === null || log.status !== "pending" || !isNotificationLog(log)) return null;
     const loan = await ctx.db.get(log.loanId);
     const tool = loan ? await ctx.db.get(loan.toolId) : null;
     if (loan === null || tool === null) return { attempts: log.attempts, payload: null };
@@ -124,7 +128,7 @@ export const recordAttempt = internalMutation({
   returns: v.null(),
   handler: async (ctx, { logId, outcome }) => {
     const log = await ctx.db.get(logId);
-    if (log === null || log.status !== "pending") return null;
+    if (log === null || log.status !== "pending" || !isNotificationLog(log)) return null;
     const now = Date.now();
     const attempts = log.attempts + 1;
     const statusCode = outcome.statusCode;

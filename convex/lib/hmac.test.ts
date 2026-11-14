@@ -90,6 +90,27 @@ describe("verifyWebhookSignature", () => {
     );
   });
 
+  it("inbound vector: an n8n Crypto-node signature verifies; another secret's does not", async () => {
+    const inbound = "i".repeat(64);
+    const outbound = "o".repeat(64);
+    const body = JSON.stringify({ version: 1, type: "overdue.list" });
+    const args = { rawBody: body, timestampHeader: String(NOW), nowSec: NOW };
+    expect(
+      await verifyWebhookSignature({
+        ...args,
+        secret: inbound,
+        signatureHeader: nodeSignature(inbound, NOW, body),
+      }),
+    ).toBe(true);
+    expect(
+      await verifyWebhookSignature({
+        ...args,
+        secret: inbound,
+        signatureHeader: nodeSignature(outbound, NOW, body),
+      }),
+    ).toBe(false);
+  });
+
   it("checks at most 5 candidate signatures", async () => {
     const valid = await signWebhook(SECRET, NOW, BODY);
     const bogus = (n: number) => Array(n).fill(`v1=${"0".repeat(64)}`).join(" ");

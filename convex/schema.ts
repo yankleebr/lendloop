@@ -1,10 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  automationEventValidator,
   automationKindValidator,
   automationStatusValidator,
   loanCloseReasonValidator,
-  loanEventTypeValidator,
   loanStatusValidator,
   roleValidator,
   toolCategoryValidator,
@@ -65,20 +65,28 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   // Outbox + delivery log for n8n automations. Written ONLY by internal code:
-  // emitLoanEvent (inside loan mutations) and notifications.recordAttempt.
+  // emitLoanEvent (inside loan mutations), notifications.recordAttempt and
+  // reminders.recordReminder.
   automationLogs: defineTable({
     loanId: v.id("loans"),
+    // "notification" (Workflow 1) | "reminder" (Workflow 2)
     kind: automationKindValidator,
-    // required for kind "notification"; the reminders spec may make it optional
-    event: loanEventTypeValidator,
+    // notification: loan.<requested|approved|rejected|cancelled|returned>; reminder: loan.overdue
+    event: automationEventValidator,
     recipientId: v.id("users"),
     // unique per row, checked in the inserting mutation (Convex has no unique constraint)
     // notification: `notification:${loanId}:${event}`
+    // reminder:     `reminder:${loanId}:${reminderDate}`
     idempotencyKey: v.string(),
+    // reminder rows only: the UTC day ("YYYY-MM-DD") the reminder belongs to
+    reminderDate: v.optional(v.string()),
+    // reminder rows are never "pending" (written when n8n reports a result)
     status: automationStatusValidator,
-    // delivery attempts processed (0 while the first one is scheduled)
+    // notification: delivery attempts processed (0 while the first one is scheduled)
+    // reminder: reports received for the key
     attempts: v.number(),
-    // short code only: http_<code> | timeout | network | not_configured | event_budget | internal | loan_missing
+    // short code only: http_<code> | timeout | network | not_configured | event_budget | internal
+    // | loan_missing | email_failed | no_email
     lastError: v.optional(v.string()),
     lastStatusCode: v.optional(v.number()),
     // epoch ms of the loan event (same transaction)

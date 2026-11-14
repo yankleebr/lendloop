@@ -79,13 +79,14 @@ Create a listing with:
 - n8n notifies the relevant user (email, Slack, Discord or a logged mock notification) using only the necessary fields
 
 ### Workflow 2 — Overdue reminders
-- **Scheduled daily**
-- Fetches overdue loans from a Convex **HTTP endpoint**
-- Sends a reminder to each borrower
-- Records the reminder status back into Convex
+- **Scheduled daily** at 09:00 `America/Sao_Paulo` (workflow timezone set explicitly)
+- Fetches overdue loans from a Convex **HTTP endpoint**: signed `POST /n8n/v1/overdue-loans` (Convex computes "today" in UTC; ≤ 50 loans per run; skips loans already reminded today and loans with 7 reminder days)
+- Sends a reminder to each borrower (Gmail); one failed email does not stop the others
+- Records the reminder status back into Convex: signed, idempotent `POST /n8n/v1/reminders` (one row per loan per UTC day)
+- Signed with a dedicated inbound secret (`N8N_INBOUND_SECRET` ↔ `HMAC INBOUND DEV` / `HMAC INBOUND PROD`)
 
 ### Workflow 3 — Error workflow
-- Catches failed executions so they are visible and never fail silently
+- Catches failed executions of Workflows 1 and 2 (Error Trigger) and emails the operator (the dedicated LendLoop Gmail account), so they are visible and never fail silently
 
 ---
 
@@ -102,7 +103,7 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users`, `tools`, `loans` and `automationLogs` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md`, `context/features/admin.md` and `context/features/loan-notifications.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users`, `tools`, `loans` and `automationLogs` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md`, `context/features/admin.md`, `context/features/loan-notifications.md` and `context/features/overdue-reminders.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
@@ -121,15 +122,19 @@ loans:          { toolId, borrowerId, lenderId, startDate, endDate,
                 // startDate/endDate: "YYYY-MM-DD" strings, inclusive whole days; requested at = _creationTime
                 // lenderId = tool.ownerId at request time; status changes only via transitionLoan
                 // indexes by_tool_status_start, by_borrower, by_borrower_status, by_lender, by_status_end, by_status
-automationLogs: { loanId, kind: "notification", event, recipientId, idempotencyKey,
-                  status: "pending" | "sent" | "failed", attempts, lastError?, lastStatusCode?,
-                  occurredAt, updatedAt, nextAttemptAt?, sentAt? }
-                // event: "loan.requested" | "loan.approved" | "loan.rejected" | "loan.cancelled" | "loan.returned"
-                // idempotencyKey: `notification:<loanId>:<event>` (unique, checked on insert)
-                // written only by emitLoanEvent (inside loan mutations) and notifications.recordAttempt
-                // lastError: short code only (http_<code>, timeout, network, not_configured, event_budget, internal, loan_missing)
+automationLogs: { loanId, kind: "notification" | "reminder", event, recipientId, idempotencyKey,
+                  reminderDate?, status: "pending" | "sent" | "failed", attempts, lastError?,
+                  lastStatusCode?, occurredAt, updatedAt, nextAttemptAt?, sentAt? }
+                // event: notification "loan.requested" | "loan.approved" | "loan.rejected" | "loan.cancelled"
+                //        | "loan.returned"; reminder "loan.overdue"
+                // idempotencyKey (unique, checked on insert): `notification:<loanId>:<event>`
+                //                                             | `reminder:<loanId>:<reminderDate>`
+                // reminder rows: recipient = borrower, reminderDate = UTC day, never "pending"
+                // written only by emitLoanEvent (inside loan mutations), notifications.recordAttempt
+                // and reminders.recordReminder
+                // lastError: short code only (http_<code>, timeout, network, not_configured, event_budget,
+                //            internal, loan_missing, email_failed, no_email)
                 // indexes by_idempotency_key, by_loan, by_kind_status
-                // the reminders spec adds kind "reminder"
 ```
 
 ---

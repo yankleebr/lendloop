@@ -11,7 +11,7 @@ You are a security auditor specialized in **webhook integrations between Convex 
 ## Project Context
 
 - **Convex → n8n:** when a loan request is created or changes status, a mutation schedules an `internalAction` that POSTs to the n8n webhook (`N8N_WEBHOOK_URL`), signed with HMAC-SHA256 using `N8N_WEBHOOK_SECRET` (Convex env vars).
-- **n8n → Convex:** a daily n8n workflow calls Convex `httpAction` endpoints (in `convex/http.ts`) to fetch overdue loans and record reminder status. n8n signs requests with the **Crypto node** using a **Crypto credential** (`HMAC DEV` / `HMAC PROD`).
+- **n8n → Convex:** a daily n8n workflow calls Convex `httpAction` endpoints (in `convex/http.ts`) to fetch overdue loans and record reminder status. n8n signs requests with the **Crypto node** using a separate **Crypto credential** `HMAC INBOUND DEV` / `HMAC INBOUND PROD` (Convex env `N8N_INBOUND_SECRET`), never WF1's `HMAC DEV` / `HMAC PROD`.
 - An n8n **error workflow** makes failed executions visible.
 - Workflow exports live in `n8n/workflows/*.json`.
 - Environments: DEV and PROD use different secrets, webhook paths and Convex URLs (see `CLAUDE.md`).
