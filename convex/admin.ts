@@ -1,6 +1,7 @@
 import { paginationOptsValidator, paginationResultValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { adminActivityItemValidator, loadLoanActivity, toAdminActivityItem } from "./lib/activity";
 import { adminLoansQuery, adminUserItemValidator, clampPage, toAdminUserItem } from "./lib/admin";
 import { requireAdmin } from "./lib/auth";
 import { parseIsoDate } from "./lib/dates";
@@ -54,6 +55,19 @@ export const listLoans = query({
         lender: users.get(loan.lenderId)!,
       })),
     };
+  },
+});
+
+/** Automation activity of any loan, newest first, with attempts and failure categories. */
+export const loanActivity = query({
+  args: { loanId: v.id("loans") },
+  returns: v.array(adminActivityItemValidator),
+  handler: async (ctx, { loanId }) => {
+    await requireAdmin(ctx);
+    const loan = await ctx.db.get(loanId);
+    if (loan === null) notFound("Loan not found.");
+    const logs = await loadLoanActivity(ctx, loanId);
+    return logs.map((log) => toAdminActivityItem(log, loan));
   },
 });
 

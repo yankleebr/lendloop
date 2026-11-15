@@ -5,6 +5,7 @@ import { usePaginatedQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { ADMIN_PAGE_SIZE } from "../../../convex/lib/adminRules";
 import type { AdminLoanFilter as Filter } from "../../../convex/lib/validators";
+import { AdminLoanActivity } from "@/components/activity/AdminLoanActivity";
 import { LoanCard } from "@/components/loans/LoanCard";
 import { LoanListSkeleton } from "@/components/loans/LoanListSkeleton";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -56,6 +57,7 @@ export function AdminLoansView() {
                     {formatTimestamp(loan._creationTime)}
                   </p>
                 }
+                activity={<AdminLoanActivity loanId={loan._id} />}
               />
             </li>
           ))}

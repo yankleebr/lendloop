@@ -66,8 +66,9 @@ Create a listing with:
 - View all loans
 - Mark a lender as "Trusted Lender"
 
-### F. (Bonus) Automation activity
+### F. (Bonus) Automation activity ✅
 - Show recent automation activity on each loan, e.g. "Reminder sent 2 days ago"
+- Implemented on *My requests*, *Incoming requests* and `/admin/loans` (latest entry inline, full history expandable; admins also see attempts and failure categories)
 
 ---
 
@@ -103,7 +104,7 @@ Required in **both directions** (Convex → n8n and n8n → Convex):
 
 ## 🗄️ Data Model — Draft
 
-> ⚠️ **DRAFT** — `users`, `tools`, `loans` and `automationLogs` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md`, `context/features/admin.md`, `context/features/loan-notifications.md` and `context/features/overdue-reminders.md`); the other tables are decided by their own specs.
+> ⚠️ **DRAFT** — `users`, `tools`, `loans` and `automationLogs` are implemented (see `context/features/schema-rbac.md`, `context/features/tools-public-page.md`, `context/features/loans.md`, `context/features/admin.md`, `context/features/loan-notifications.md`, `context/features/overdue-reminders.md` and `context/features/automation-activity.md`); the other tables are decided by their own specs.
 
 ```ts
 // convex/schema.ts (DRAFT)
@@ -135,6 +136,9 @@ automationLogs: { loanId, kind: "notification" | "reminder", event, recipientId,
                 // lastError: short code only (http_<code>, timeout, network, not_configured, event_budget,
                 //            internal, loan_missing, email_failed, no_email)
                 // indexes by_idempotency_key, by_loan, by_kind_status
+                // read by clients ONLY through activity.forLoan (loan parties) and admin.loanActivity
+                // (admins): projected DTO { key, kind, event, audience, status, at, reason (+ attempts) },
+                // never raw rows (see context/features/automation-activity.md)
 ```
 
 ---

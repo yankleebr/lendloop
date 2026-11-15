@@ -1,16 +1,41 @@
-# Current Feature
+# Current Feature: Automation Activity (Bonus F, DEV)
+
+Spec: `context/features/automation-activity.md`
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- `activity.forLoan({ loanId })` (public query): borrower or lender only; UNAUTHENTICATED for visitors / unstored users, FORBIDDEN for anyone else (including non-party admins), NOT_FOUND for unknown ids
+- `admin.loanActivity({ loanId })` (public query, `requireAdmin` first): any loan, admin DTO with `attempts` + failure category
+- Both read one `loans` `get` + `automationLogs` via `by_loan`, `.order("desc")`, `.take(MAX_ACTIVITY_PER_LOAN = 10)`; no `.filter`, no schema change, no `Date.now()`
+- Projected DTO only: keys `key, kind, event, audience, status, at, reason` (+ `attempts` for admin); never `_id`, `idempotencyKey`, `recipientId`, `lastStatusCode`, `nextAttemptAt`, `reminderDate`, `lastError`, raw timestamps, `loanId`
+- Mapping per spec: audience as role; status `sending` / `retrying` / `sent` / `failed`; `at` per status; parties see `no_email` only on their own rows, else `delivery_failed`; admins see six categories
+- UI: `activity` slot on `LoanCard`; `LoanActivity` on *My requests* / *Incoming*, `AdminLoanActivity` on `/admin/loans`; latest entry inline, rest in native `<details>`; loading / empty / error states (error never replaces the page — `useQueries` via `useLoanActivity`)
+- `RelativeTime` on a shared 60 s `useNow` clock; `<time dateTime>` ISO, absolute date in `title` and as text in the expanded list
+- Fits 375px without horizontal scroll
+- convex-test coverage of the authorization matrix and DTO mapping; unit tests for copy and `formatRelative`
+- No new npm package / shadcn component; `npm run lint`, `npm run test:run`, `npm run build` pass; auth-auditor no critical/high
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- One query per card (Decision 1): narrower invalidation than joining into list queries; batched `activity.forLoans` kept on file as an alternative, not implemented
+- Rows per loan bounded by write rules (≤ 3 notifications + ≤ 7 reminders), so `take(10)` shows full history
+- Order: `_creationTime` desc (implicit last column of `by_loan`)
+- `at`: `sent` → `sentAt ?? updatedAt`; `failed` → `updatedAt`; pending → `occurredAt`
+- `key`: event for notifications, `overdue:<reminderDate ?? occurredAt>` for reminders
+- Admin reasons: `no_email`, `email_failed`, `not_configured`, `skipped` (`event_budget`), `internal` (`internal`, `loan_missing`), `service_error` (`http_*`, `timeout`, `network`, unknown/missing); `retrying` rows show last attempt's category to admins only
+- Copy lives client-side in `src/lib/activity.ts` (`activityLabel`, `activityDetails` (reason + admin attempts), `formatRelative` with `formatDistanceStrict` + `floor`, "just now" < 60 s, future clamped; `formatAbsolute` = `format(at, "PPp")`)
+- Icons: `MailCheckIcon` (sent), `ClockIcon` (sending/retrying), `MailWarningIcon` + `text-destructive` (failed)
+- Files: `convex/lib/activity.ts` (+ test), `convex/activity.ts` (+ test), `convex/admin.ts` / `admin.test.ts`, `convex/lib/automationRules.ts`, `src/lib/activity.ts` (+ test), `src/types/activity.ts`, `src/hooks/useNow.ts`, `src/hooks/useLoanActivity.ts`, `src/components/activity/*`, `LoanCard`, `MyRequestsView`, `IncomingRequestsView`, `AdminLoansView`, `context/project-overview.md`
+- DEV only; PROD impact is just two additive read-only queries (deploy order safe). PROD's first WF1 row (`failed` / `http_401`) will show as "Couldn't be delivered" / "Notification service error" — expected
+- Manual steps 1–9 in the spec (A lender, B borrower, Admin; retrying via unpublished WF1; failure reasons via dashboard edits; reminder via WF2 manual run; 375px)
+- Deviation: while `<details>` is open the inline latest entry is hidden (`group-has-[details[open]]`) so it isn't shown twice; summary reads "Hide activity" when open
+- Gotcha (fixed): `api.x.y` is a Proxy that returns a new object on every access, so `useMemo([query])` never hits; `useQueries` then re-subscribes with setState during render → "Too many re-renders". `useLoanActivity` memoizes on `getFunctionName(query)` + `makeFunctionReference`
+- auth-auditor: no critical/high/medium; L1 (loan-id existence oracle NOT_FOUND vs FORBIDDEN) accepted per Decision 13; L2 test gaps fixed (unstored identity on `admin.loanActivity`, admin-as-party on `forLoan`, admin JSON leak check, admin 10-row bound + `sending`)
+- DEV browser verified: steps 1–6, 8 (admin filters), 375px; step 5 `http_500` swap skipped (unit-tested); step 7 nothing to test in UI (FORBIDDEN covered by tests). 382 tests; lint and build pass
 
 ## History
 

@@ -86,6 +86,10 @@ describe("guards", () => {
       (c: Caller) => c.query(api.admin.listUsers, { paginationOpts: FIRST_PAGE }),
       (c: Caller) =>
         c.mutation(api.admin.setTrustedLender, { userId: s.aliceId, isTrusted: true }),
+      async (c: Caller) =>
+        c.query(api.admin.loanActivity, {
+          loanId: await insertLoan(s, { startDate: TODAY, endDate: TODAY, status: "pending" }),
+        }),
     ];
     for (const call of calls) {
       expect(await errorCode(call(s.t))).toBe("UNAUTHENTICATED");
@@ -503,10 +507,143 @@ describe("admin as a normal user", () => {
   });
 });
 
+describe("loanActivity", () => {
+  async function withLog(s: Setup, fields: Partial<Doc<"automationLogs">>) {
+    const loanId = await insertLoan(s, { startDate: TODAY, endDate: TODAY, status: "approved" });
+    await s.t.run((ctx) =>
+      ctx.db.insert("automationLogs", {
+        loanId,
+        kind: "notification",
+        event: "loan.approved",
+        recipientId: s.bobId,
+        idempotencyKey: `notification:${loanId}:loan.approved`,
+        status: "failed",
+        attempts: 1,
+        occurredAt: 1,
+        updatedAt: 2,
+        ...fields,
+      }),
+    );
+    return loanId;
+  }
+
+  it("rejects visitors and parties who are not admins", async () => {
+    const s = await setup();
+    const loanId = await withLog(s, {});
+    expect(await errorCode(s.t.query(api.admin.loanActivity, { loanId }))).toBe("UNAUTHENTICATED");
+    expect(await errorCode(s.bob.query(api.admin.loanActivity, { loanId }))).toBe("FORBIDDEN");
+    expect(await errorCode(s.alice.query(api.admin.loanActivity, { loanId }))).toBe("FORBIDDEN");
+    const ghost = s.t.withIdentity({ subject: "user_ghost" });
+    expect(await errorCode(ghost.query(api.admin.loanActivity, { loanId }))).toBe("UNAUTHENTICATED");
+  });
+
+  it("never leaks internal identifiers or raw codes", async () => {
+    const s = await setup();
+    const loanId = await withLog(s, { lastError: "http_503", lastStatusCode: 503, nextAttemptAt: 99 });
+    const log = (await s.t.run((ctx) => ctx.db.query("automationLogs").first()))!;
+    const json = JSON.stringify(await s.carol.query(api.admin.loanActivity, { loanId }));
+    for (const secret of [log.idempotencyKey, log.recipientId, log._id, loanId, "http_503", "503", "99"]) {
+      expect(json).not.toContain(secret);
+    }
+  });
+
+  it("caps at the newest 10 rows; pending with no attempt is sending", async () => {
+    const s = await setup();
+    const loanId = await withLog(s, { status: "pending", attempts: 0 });
+    for (let i = 1; i <= 11; i++) {
+      await s.t.run((ctx) =>
+        ctx.db.insert("automationLogs", {
+          loanId,
+          kind: "reminder",
+          event: "loan.overdue",
+          recipientId: s.bobId,
+          idempotencyKey: `reminder:${loanId}:d${i}`,
+          reminderDate: `d${i}`,
+          status: "sent",
+          attempts: 1,
+          occurredAt: i,
+          updatedAt: i,
+        }),
+      );
+    }
+    const items = await s.carol.query(api.admin.loanActivity, { loanId });
+    expect(items).toHaveLength(10);
+    expect(items[0].key).toBe("overdue:d11");
+    expect(items.some((i) => i.key === "loan.approved")).toBe(false);
+
+    const fresh = await withLog(s, { status: "pending", attempts: 0 });
+    expect((await s.carol.query(api.admin.loanActivity, { loanId: fresh }))[0]).toMatchObject({
+      status: "sending",
+      reason: null,
+      attempts: 0,
+    });
+  });
+
+  it("returns the admin DTO with attempts on any loan", async () => {
+    const s = await setup();
+    const loanId = await withLog(s, { attempts: 3, lastError: "no_email", lastStatusCode: 500 });
+    const items = await s.carol.query(api.admin.loanActivity, { loanId });
+    expect(items).toEqual([
+      {
+        key: "loan.approved",
+        kind: "notification",
+        event: "loan.approved",
+        audience: "borrower",
+        status: "failed",
+        at: 2,
+        attempts: 3,
+        reason: "no_email",
+      },
+    ]);
+    expect(Object.keys(items[0]).sort()).toEqual(
+      ["at", "attempts", "audience", "event", "key", "kind", "reason", "status"],
+    );
+  });
+
+  it.each([
+    ["no_email", "no_email"],
+    ["email_failed", "email_failed"],
+    ["not_configured", "not_configured"],
+    ["event_budget", "skipped"],
+    ["http_500", "service_error"],
+    ["timeout", "service_error"],
+    ["network", "service_error"],
+    ["weird", "service_error"],
+    ["internal", "internal"],
+    ["loan_missing", "internal"],
+  ])("failed %s → %s", async (lastError, expected) => {
+    const s = await setup();
+    const loanId = await withLog(s, { lastError });
+    expect((await s.carol.query(api.admin.loanActivity, { loanId }))[0].reason).toBe(expected);
+  });
+
+  it("retrying shows the last attempt's category; sent has none", async () => {
+    const s = await setup();
+    const retrying = await withLog(s, { status: "pending", attempts: 1, lastError: "http_404" });
+    expect((await s.carol.query(api.admin.loanActivity, { loanId: retrying }))[0]).toMatchObject({
+      status: "retrying",
+      reason: "service_error",
+    });
+    const sent = await withLog(s, { status: "sent", sentAt: 3 });
+    expect((await s.carol.query(api.admin.loanActivity, { loanId: sent }))[0]).toMatchObject({
+      status: "sent",
+      reason: null,
+      at: 3,
+    });
+  });
+
+  it("NOT_FOUND for an unknown loan", async () => {
+    const s = await setup();
+    const loanId = await withLog(s, {});
+    await s.t.run((ctx) => ctx.db.delete(loanId));
+    expect(await errorCode(s.carol.query(api.admin.loanActivity, { loanId }))).toBe("NOT_FOUND");
+  });
+});
+
 describe("API surface", () => {
-  it("admin exposes exactly the four admin functions; users stays store + current", () => {
+  it("admin exposes exactly the admin functions; users stays store + current", () => {
     expect(Object.keys(adminModule).sort()).toEqual(
-      ["listLoans", "listUsers", "removeTool", "setTrustedLender"].sort(),
+      ["listLoans", "listUsers", "loanActivity", "removeTool", "setTrustedLender"].sort(),
     );
     const publicUsers = Object.entries(usersModule)
       .filter(([, fn]) => (fn as { isPublic?: boolean }).isPublic)

@@ -26,6 +26,8 @@ interface LoanCardProps {
   closeReason?: LoanCloseReason;
   /** Extra details below the status (e.g. requested date in the admin view). */
   meta?: ReactNode;
+  /** Automation activity block, rendered at the end of the content. */
+  activity?: ReactNode;
   actions?: ReactNode;
 }
 
@@ -40,6 +42,7 @@ export function LoanCard({
   isOverdue,
   closeReason,
   meta,
+  activity,
   actions,
 }: LoanCardProps) {
   return (
@@ -63,6 +66,7 @@ export function LoanCard({
           <p className="text-xs text-muted-foreground">{CLOSE_REASON_LABELS[closeReason]}</p>
         )}
         {meta}
+        {activity}
       </CardContent>
       {actions !== undefined && <CardFooter className="flex-wrap gap-2">{actions}</CardFooter>}
     </Card>

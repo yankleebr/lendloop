@@ -6,6 +6,7 @@ import { CheckIcon, PackageCheckIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { LoanActivity } from "@/components/activity/LoanActivity";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToday } from "@/hooks/useToday";
@@ -96,6 +97,7 @@ export function IncomingRequestsView() {
               status={loan.status}
               isOverdue={loan.isOverdue}
               closeReason={loan.closeReason}
+              activity={<LoanActivity loanId={loan._id} viewer="lender" />}
               actions={renderActions(loan)}
             />
           )}

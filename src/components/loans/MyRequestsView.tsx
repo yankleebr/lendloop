@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { XIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
+import { LoanActivity } from "@/components/activity/LoanActivity";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useToday } from "@/hooks/useToday";
@@ -50,6 +51,7 @@ export function MyRequestsView() {
               status={loan.status}
               isOverdue={loan.isOverdue}
               closeReason={loan.closeReason}
+              activity={<LoanActivity loanId={loan._id} viewer="borrower" />}
               actions={
                 loan.status === "pending" ? (
                   <Button variant="outline" size="sm" onClick={() => setCancelling(loan)}>

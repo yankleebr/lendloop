@@ -32,3 +32,11 @@ export const MAX_REMINDERS_PER_RUN = 50;
 export const MAX_REMINDER_DAYS = 7;
 /** automationLogs rows read per loan (≤ 5 notifications + ≤ 7 reminders in practice). */
 export const MAX_LOAN_LOG_SCAN = 50;
+
+// Activity read model (see context/features/automation-activity.md).
+
+/**
+ * automationLogs rows shown per loan, newest first. The write rules cap a loan at
+ * 3 notification rows + MAX_REMINDER_DAYS reminder rows, so this is the full history.
+ */
+export const MAX_ACTIVITY_PER_LOAN = 10;
