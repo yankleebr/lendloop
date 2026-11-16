@@ -58,7 +58,7 @@ export function AdminRemoveToolDialog({ tool, onOpenChange }: AdminRemoveToolDia
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="break-words">
+          <AlertDialogTitle className="wrap-break-word">
             Remove &ldquo;{shown?.name}&rdquo; by {shown?.ownerName}?
           </AlertDialogTitle>
           <AlertDialogDescription>

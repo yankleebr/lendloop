@@ -18,7 +18,7 @@ export function AdminNav() {
       <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
       <nav
         aria-label="Admin"
-        className="-mx-1 flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-1 flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
       >
         {ADMIN_LINKS.map(({ href, label }) => {
           const active = pathname === href;

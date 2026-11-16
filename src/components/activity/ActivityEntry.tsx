@@ -18,7 +18,7 @@ export function ActivityEntry({ item, viewer, showAbsolute = false }: ActivityEn
   return (
     <li className="flex min-w-0 gap-2 text-xs">
       <Icon aria-hidden className={cn("mt-px size-3.5 shrink-0", iconClass)} />
-      <p className={cn("min-w-0 break-words", textClass)}>
+      <p className={cn("min-w-0 wrap-break-word", textClass)}>
         {parts.join(" · ")} · <RelativeTime at={item.at} />
         {showAbsolute && (
           <span className="block text-muted-foreground">{formatAbsolute(item.at)}</span>

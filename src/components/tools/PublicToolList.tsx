@@ -27,7 +27,7 @@ export function PublicToolList({ preloaded }: PublicToolListProps) {
         <li key={tool._id}>
           <Card size="sm" className="h-full">
             <CardHeader className="gap-2">
-              <CardTitle className="break-words">{tool.name}</CardTitle>
+              <CardTitle className="wrap-break-word">{tool.name}</CardTitle>
               <Badge variant="secondary">{CATEGORY_LABELS[tool.category]}</Badge>
             </CardHeader>
           </Card>

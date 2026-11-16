@@ -53,7 +53,7 @@ export function RemoveToolDialog({ tool, onOpenChange }: RemoveToolDialogProps) 
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Remove this tool?</AlertDialogTitle>
-          <AlertDialogDescription className="break-words">
+          <AlertDialogDescription className="wrap-break-word">
             &ldquo;{shownName}&rdquo; will disappear from the board and its pending requests
             will be rejected. This can&apos;t be undone.
           </AlertDialogDescription>

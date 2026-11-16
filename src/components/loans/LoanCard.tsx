@@ -48,12 +48,12 @@ export function LoanCard({
   return (
     <Card size="sm" className="h-full">
       <CardHeader>
-        <CardTitle className="break-words">
+        <CardTitle className="wrap-break-word">
           {toolName}
           {toolRemoved && <span className="font-normal text-muted-foreground"> (removed)</span>}
         </CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="min-w-0 break-words">{counterpart}</span>
+          <span className="min-w-0 wrap-break-word">{counterpart}</span>
           {counterpartTrusted && <TrustedLenderBadge />}
         </CardDescription>
       </CardHeader>

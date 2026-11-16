@@ -95,7 +95,7 @@ function UserCard({ user, isSaving, onMarkTrusted, onRemoveTrusted }: UserCardPr
   return (
     <Card size="sm" className="h-full">
       <CardHeader>
-        <CardTitle className="break-words">
+        <CardTitle className="wrap-break-word">
           {user.name}
           {user.isMe && <span className="font-normal text-muted-foreground"> (you)</span>}
         </CardTitle>

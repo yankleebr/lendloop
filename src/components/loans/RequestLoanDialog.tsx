@@ -51,7 +51,7 @@ export function RequestLoanDialog({ tool, today, onOpenChange }: RequestLoanDial
     <Dialog open={tool !== null} onOpenChange={(next) => !isSending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-md" showCloseButton={!isSending}>
         <DialogHeader>
-          <DialogTitle className="break-words">Request &ldquo;{shown?.name}&rdquo;</DialogTitle>
+          <DialogTitle className="wrap-break-word">Request &ldquo;{shown?.name}&rdquo;</DialogTitle>
           <DialogDescription>
             Pick the days you need it. The owner will approve or reject your request.
           </DialogDescription>

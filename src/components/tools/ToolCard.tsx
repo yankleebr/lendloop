@@ -44,10 +44,10 @@ export function ToolCard({
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="break-words">{name}</CardTitle>
+        <CardTitle className="wrap-break-word">{name}</CardTitle>
         {ownerName !== undefined && (
-          <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 break-words">
-            <span className="min-w-0 break-words">Lent by {isMine ? "you" : ownerName}</span>
+          <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 wrap-break-word">
+            <span className="min-w-0 wrap-break-word">Lent by {isMine ? "you" : ownerName}</span>
             {ownerTrusted && <TrustedLenderBadge />}
           </CardDescription>
         )}
@@ -62,7 +62,7 @@ export function ToolCard({
           {isMine && <Badge variant="outline">Yours</Badge>}
         </div>
         {description !== "" && (
-          <p className="line-clamp-3 break-words whitespace-pre-line text-muted-foreground">
+          <p className="line-clamp-3 wrap-break-word whitespace-pre-line text-muted-foreground">
             {description}
           </p>
         )}

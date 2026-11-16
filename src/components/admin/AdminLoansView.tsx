@@ -52,7 +52,7 @@ export function AdminLoansView() {
                 isOverdue={loan.isOverdue}
                 closeReason={loan.closeReason}
                 meta={
-                  <p className="text-xs break-words text-muted-foreground">
+                  <p className="text-xs wrap-break-word text-muted-foreground">
                     Borrowed by {loan.borrower.name} · Requested{" "}
                     {formatTimestamp(loan._creationTime)}
                   </p>

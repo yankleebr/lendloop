@@ -37,7 +37,7 @@ export function AppHeader() {
         </Link>
         <nav
           aria-label="Main"
-          className="order-last -mx-1 flex w-full gap-0.5 overflow-x-auto [scrollbar-width:none] sm:order-none sm:w-auto sm:gap-1 [&::-webkit-scrollbar]:hidden"
+          className="order-last -mx-1 flex w-full gap-0.5 overflow-x-auto scrollbar-none sm:order-0 sm:w-auto sm:gap-1 [&::-webkit-scrollbar]:hidden"
         >
           {NAV_LINKS.map(({ href, label }) => {
             const active = pathname === href;

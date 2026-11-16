@@ -56,7 +56,7 @@ export function LoanActionDialog({ action, onOpenChange }: LoanActionDialogProps
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{shown?.title}</AlertDialogTitle>
-          <AlertDialogDescription className="break-words">{shown?.description}</AlertDialogDescription>
+          <AlertDialogDescription className="wrap-break-word">{shown?.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isRunning}>Keep it</AlertDialogCancel>
