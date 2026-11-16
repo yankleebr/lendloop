@@ -393,7 +393,7 @@ The live deployment works end to end, but some choices were made for an evaluati
 - **Scale:** cursor pagination for overdue reminders instead of the fixed 50 / 200 caps; a bounded or denormalized availability read per tool; rate limits on public mutations (loan requests, listing creation).
 - **Secrets:** scheduled rotation of the HMAC secrets and webhook paths, with receivers accepting both the old and the new secret during the switch; full payload validation in the n8n verification step.
 - **Delivery pipeline:** CI on every pull request (lint, tests, build) with branch protection on `main`; a staging environment (or Convex preview deployments) wired to its own n8n workflows; backward-compatible schema changes (widen → migrate → narrow), since Vercel Instant Rollback does not revert Convex functions; scheduled Convex backups.
-- **Privacy (LGPD):** a privacy policy, account deletion and data export, an email opt-out, and a retention period for `automationLogs`.
+- **Privacy:** a privacy policy, account deletion and data export, an email opt-out, and a retention period for `automationLogs`.
 - **Time zones:** the user's time zone, not the UTC day, decides when a loan is overdue and when its reminder is sent.
 
 ## How this project was built
