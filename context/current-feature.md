@@ -1,16 +1,35 @@
-# Current Feature
+# Current Feature: README — Project README for Evaluators
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- Replace the create-next-app default `README.md` with one page an evaluator reads top-down: pitch → live demo → screenshots → architecture → how it works → run it → test it → limits
+- Opening with tagline, 2-sentence pitch, live URL (https://lendloop-tawny.vercel.app, Clerk development instance note) and hero screenshot; short manual TOC (H2 anchors only)
+- Features A–F (F marked as bonus ✅) with a screenshot grid; tech stack table; one Mermaid flowchart (default theme, no `classDef` / `style` / `%%{init}%%`) covering both HMAC directions
+- Roles matrix re-checked cell by cell against `convex/tools.ts`, `convex/loans.ts`, `convex/admin.ts`
+- Automation section: WF1 / WF2 / WF3 paragraphs, signing scheme table (both directions, inbound pipeline order 503 → 415 → 413 → 401 → 400), idempotency keys, retries/backoff and where failures show
+- Data model (four tables, availability derived, soft delete); environments and deploy (no deployment names); security notes; honest known limitations
+- Two setup tracks: *Quick start (app only)* (works without n8n — `not_configured` / 503 by design) and *Full setup (automation)* (secrets, n8n credentials, import order, re-link steps, Convex env vars, WF1/WF2/WF3 verification) + troubleshooting
+- Testing section matches `npm run test:run` at commit time (382 tests in 16 files expected) and lists what is covered + auditor agents
+- No secrets, keys, credential values, webhook URLs, deployment names, `.convex.site` hosts (placeholders only) or personal / project emails in the README or screenshots
+- Every command matches `package.json` / documented CLIs; every env var name matches `.env.example` / `CLAUDE.md` / `convex/`; every relative link and external link resolves
+- Fix the `context/project-overview.md` tech-stack row ("System / Light / Dark" → "Light / Dark toggle (follows the OS until the user picks)"), if the user agrees
+- `npm run lint`, `npm run test:run`, `npm run build` pass; Mermaid and images verified on github.com in light and dark theme (user)
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- Spec: `context/features/readme.md`. Docs only — no code, CSS, Convex, schema, n8n or env var change. PROD impact: no-op Vercel deploy on `main` push.
+- Structure: single `README.md` + `docs/screenshots/` (Decision 1); target ≈ 350–450 lines, fall back to `docs/*.md` only past ~600 lines. Deep detail linked to `context/features/*.md` / `CLAUDE.md`, not copied.
+- Screenshots (2026-11-16): 7 PNGs `01-public` … `07-dark-requests` captured by Claude with Playwright on `localhost:3000`, at the user's request, signed in as the DEV admin account only. Demo data came from a temporary `convex/devSeed.ts` (internal mutations, never committed), pushed to DEV, then removed with its cleanup mutation (DEV back to its original 3 tools / 20 loans). Real names, Portuguese tool names, the avatar photo and the Next.js dev indicator were replaced or hidden in the DOM only, right before each capture. No email is visible. Sizes 39–114 KB (564 KB total). Hero shown at `width="720"`; the 2×3 grid uses `width="420"` (desktop) / `"200"` (mobile) so two columns fit.
+- Clerk session-token claims JSON (read from "LendLoop Dev" by the user, 2026-11-16): `{ "aud": "convex", "name": "{{user.full_name}}", "email": "{{user.primary_email_address}}" }`. `aud` must match `applicationID: "convex"` in `convex/auth.config.ts`.
+- Self-check grep before commit: `@`, `sk_`, `pk_`, `convex.cloud`, `convex.site` (placeholder only), `webhook/`, deployment names, the Gmail address.
+- Doc conflicts followed: `CLERK_JWT_ISSUER_DOMAIN` (matches code, note Clerk's `CLERK_FRONTEND_API_URL` name); README lists only `dev` / `build` / `lint` / `test` / `test:run`; Node ≥ 20.9 (developed on 24), no `engines` added; re-select every n8n credential after import.
+- Repo is private today; if made public, the PROD WF1 webhook path in `n8n/workflows/loan-notifications.prod.json` becomes public — user decides.
+- Out of scope: videos/GIFs, CONTRIBUTING / CoC / templates, badges, CI, `docs/*.md` set, translation, repo visibility changes, `LICENSE` unless chosen.
+- **User decisions so far (2026-11-16):** `project-overview.md` theme row fix approved; the repo will be made **public** (WF1 webhook path rotation still under consideration by the user — not part of this feature unless asked); (1) single `README.md` + `docs/screenshots/`; (2) live URL + workflow names public, Convex endpoints as placeholders, WF1 webhook URL never; (3) the 7 screenshots only, no `08`; (5) include "How this project was built"; (6) keep the n8n Cloud trial bullet (generic wording unless the user gives an end date); (4) no license (no `LICENSE` file, no License section).
 
 ## History
 
