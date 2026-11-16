@@ -1,12 +1,7 @@
-import { ShieldCheckIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StyledBadge } from "@/components/status/StyledBadge";
+import { TRUSTED_LENDER_STYLE } from "@/lib/status-styles";
 
 /** Public badge for lenders an admin marked as trusted. */
 export function TrustedLenderBadge() {
-  return (
-    <Badge variant="secondary">
-      <ShieldCheckIcon data-icon="inline-start" />
-      Trusted Lender
-    </Badge>
-  );
+  return <StyledBadge style={TRUSTED_LENDER_STYLE}>Trusted Lender</StyledBadge>;
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { ShieldIcon } from "lucide-react";
+import { LendLoopLogo } from "@/components/brand/LendLoopLogo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +19,7 @@ const NAV_LINKS = [
 const LINK_CLASS = "rounded-md py-1.5 text-sm whitespace-nowrap transition-colors hover:bg-muted";
 
 function linkState(active: boolean) {
-  return active ? "bg-muted font-medium text-foreground" : "text-muted-foreground";
+  return active ? "bg-secondary font-medium text-secondary-foreground" : "text-muted-foreground";
 }
 
 export function AppHeader() {
@@ -30,8 +32,8 @@ export function AppHeader() {
   return (
     <header className="border-b">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          LendLoop
+        <Link href="/" className="rounded-md">
+          <LendLoopLogo size="sm" />
         </Link>
         <nav
           aria-label="Main"
@@ -77,6 +79,7 @@ export function AppHeader() {
               Admin
             </Link>
           )}
+          <ThemeToggle />
           <UserButton />
         </div>
       </div>

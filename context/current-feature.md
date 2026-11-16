@@ -1,16 +1,41 @@
-# Current Feature
+# Current Feature: Theme Colors — Palette, Theme Polish and Project Logo (DEV)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- Brand palette (variation (a) neutral + indigo, primary `#3423A6`, lavender secondary/accent, lavender-tinted neutrals) as OKLCH tokens in `src/app/globals.css` only — no Tailwind palette classes and no hex/rgb/hsl/oklch elsewhere in `src/` (except logo/icon files)
+- New semantic tokens `--success` / `--warning` / `--info` / `--destructive` (+ `-foreground`) and `--overlay`, exposed via `@theme inline`; chart/sidebar tokens retinted
+- Dark mode via `[data-theme="dark"]` + `@custom-variant dark`; theme toggle (Light ↔ Dark; OS theme followed live until the user picks one) using the Next.js inline-script pattern: `localStorage`, no flash, cross-tab sync, no `cookies()` read, no `next-themes` `ThemeProvider`
+- One status → style map in `src/lib/status-styles.ts` (loan status, availability, overdue, Trusted Lender, activity status); `on_loan` → `info` (no longer `destructive`); icons where variants are shared; color never the only signal
+- Badge cva variants `success`, `warning`, `info`, `brand`; `bg-overlay` in dialog / alert-dialog; `dark:hover:bg-destructive/25` in button
+- Logo Option A (loop arrows) + Geist semibold wordmark: `logo-paths.ts`, `LendLoopLogo.tsx`, in `AppHeader` and the `/` `h1`; active nav link `bg-secondary text-secondary-foreground`
+- Icons: `src/app/icon.svg` (single periwinkle tile + indigo mark), `src/app/apple-icon.tsx` (`ImageResponse` 180×180), replaced `favicon.ico` (16 + 32 px, generated with `sharp` by a scratchpad script)
+- Metadata: title template `%s · LendLoop`, `applicationName`, `viewport.themeColor`; per-page titles on the 7 `(app)` pages
+- Clerk `appearance.variables` with `var(--token)` (`src/lib/clerk-appearance.ts`); Sonner `theme` from `useResolvedTheme()` and per-type icon colors (no `richColors`)
+- Public page `/`: logo heading, tagline `font-medium text-primary`, `ThemeToggle` top-right, no colored panel
+- WCAG 2.2 AA in light and dark (text ≥ 4.5:1, UI/focus ≥ 3:1); fits 375px
+- Delete the five unreferenced `public/*.svg` defaults (confirmed by the user); update `context/project-overview.md` UI row
+- `npm run lint`, `npm run test:run` (382, unchanged), `npm run build` pass
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- Spec: `context/features/theme-colors.md`. UI only — no Convex, n8n, schema, function, env var or Clerk dashboard change; no new npm package, no new shadcn component.
+- Decided by the user: palette (a) Indigo, logo Option A, Geist (no serif font), toggle with inline script, delete the `public/*.svg` defaults (on the feature branch).
+- Defaults kept unless the user says otherwise: Clerk `appearance.variables` (no `@clerk/ui`), Sonner token colors + colored icons, **no** OG image.
+- `next-themes`: user approved removal (`npm uninstall next-themes`).
+- Change from the spec (user, during implementation): no explicit "System" mode. The toggle is Light ↔ Dark (sun/moon = current theme); until the user picks one, the OS theme is followed live (nothing stored).
+- Change from the spec (user): a single icon look everywhere — periwinkle `#B5C5FF` tile with the indigo mark for `icon.svg`, `favicon.ico` and `apple-icon` (no `prefers-color-scheme` variant: inside a favicon it follows the OS theme, not the browser UI or the toggle, which was confusing).
+- Dev gotchas: `npm run build` while `npm run dev` runs left Turbopack serving the old `globals.css` even after a restart — stop dev, delete `.next/dev`, restart. A plain `<script>` in the root layout logs "Encountered a script tag" in dev → `InlineScript` helper (`type="text/plain"` on the client).
+- `data-theme` attribute instead of `.dark` because React owns `<html className>`; `suppressHydrationWarning` on `<html>`; `ThemeToggle` re-applies the attribute in `useLayoutEffect` (Strict Mode dev remount), reading storage rather than the hydration snapshot.
+- `ring` = darker indigo `oklch(0.3 0.15 278)` in light so the 50 % halo passes 3:1; `muted-foreground/80` in `ActivityEntry` → plain `text-muted-foreground`.
+- Re-running `npx shadcn add badge` would overwrite the new variants.
+- `viewport.themeColor` follows the OS/browser, not the toggle (by design); its two hex values in `layout.tsx` are the only colors outside `globals.css` and the logo/icon files (as in the spec's *Metadata*).
+- Additions beyond the spec's file list: `src/components/status/StyledBadge.tsx` (renders a `BadgeStyle` — variant + icon — so the three badge call sites don't repeat it) and `src/components/theme/InlineScript.tsx`.
+- Verify with Playwright (`browser_emulate_media` light/dark, 375 / 1280) before the user's manual steps; Chrome auto-translate off.
+- PROD: UI only, Vercel deploy; post-merge checklist in the spec (*PROD Impact*).
 
 ## History
 

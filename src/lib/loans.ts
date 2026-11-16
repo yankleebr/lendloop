@@ -4,22 +4,12 @@ import { addDays, daysBetweenInclusive, isIsoDate } from "../../convex/lib/dates
 import { MAX_ADVANCE_DAYS, MAX_LOAN_DAYS } from "../../convex/lib/loanRules";
 import type { LoanCloseReason, LoanStatus } from "../../convex/lib/validators";
 
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
-
 export const LOAN_STATUS_LABELS: Record<LoanStatus, string> = {
   pending: "Pending",
   approved: "Approved",
   rejected: "Rejected",
   cancelled: "Cancelled",
   returned: "Returned",
-};
-
-export const LOAN_STATUS_VARIANTS: Record<LoanStatus, BadgeVariant> = {
-  pending: "secondary",
-  approved: "default",
-  rejected: "destructive",
-  cancelled: "outline",
-  returned: "outline",
 };
 
 export const CLOSE_REASON_LABELS: Record<LoanCloseReason, string> = {

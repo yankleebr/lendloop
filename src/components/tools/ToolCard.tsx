@@ -4,6 +4,7 @@ import type {
   ToolCategory,
   ToolCondition,
 } from "../../../convex/lib/validators";
+import { StyledBadge } from "@/components/status/StyledBadge";
 import { TrustedLenderBadge } from "@/components/users/TrustedLenderBadge";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AVAILABILITY_STYLES } from "@/lib/status-styles";
 import { AVAILABILITY_LABELS, CATEGORY_LABELS, CONDITION_LABELS } from "@/lib/tools";
 
 interface ToolCardProps {
@@ -54,9 +56,9 @@ export function ToolCard({
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="secondary">{CATEGORY_LABELS[category]}</Badge>
           <Badge variant="outline">{CONDITION_LABELS[condition]}</Badge>
-          <Badge variant={availability === "available" ? "default" : "destructive"}>
+          <StyledBadge style={AVAILABILITY_STYLES[availability]}>
             {AVAILABILITY_LABELS[availability]}
-          </Badge>
+          </StyledBadge>
           {isMine && <Badge variant="outline">Yours</Badge>}
         </div>
         {description !== "" && (

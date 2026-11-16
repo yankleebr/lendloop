@@ -1,5 +1,5 @@
-import { ClockIcon, MailCheckIcon, MailWarningIcon } from "lucide-react";
 import { activityDetails, activityLabel, formatAbsolute } from "@/lib/activity";
+import { ACTIVITY_STATUS_STYLES } from "@/lib/status-styles";
 import { cn } from "@/lib/utils";
 import type { ActivityViewer, AnyActivityItem } from "@/types/activity";
 import { RelativeTime } from "./RelativeTime";
@@ -12,20 +12,16 @@ interface ActivityEntryProps {
 }
 
 export function ActivityEntry({ item, viewer, showAbsolute = false }: ActivityEntryProps) {
-  const failed = item.status === "failed";
-  const Icon = failed ? MailWarningIcon : item.status === "sent" ? MailCheckIcon : ClockIcon;
+  const { icon: Icon, iconClass, textClass } = ACTIVITY_STATUS_STYLES[item.status];
   const parts = [activityLabel(item, viewer), ...activityDetails(item, viewer)];
 
   return (
     <li className="flex min-w-0 gap-2 text-xs">
-      <Icon
-        aria-hidden
-        className={cn("mt-px size-3.5 shrink-0", failed ? "text-destructive" : "text-muted-foreground")}
-      />
-      <p className={cn("min-w-0 break-words", failed ? "text-destructive" : "text-muted-foreground")}>
+      <Icon aria-hidden className={cn("mt-px size-3.5 shrink-0", iconClass)} />
+      <p className={cn("min-w-0 break-words", textClass)}>
         {parts.join(" · ")} · <RelativeTime at={item.at} />
         {showAbsolute && (
-          <span className="block text-muted-foreground/80">{formatAbsolute(item.at)}</span>
+          <span className="block text-muted-foreground">{formatAbsolute(item.at)}</span>
         )}
       </p>
     </li>

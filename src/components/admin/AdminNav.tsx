@@ -29,7 +29,7 @@ export function AdminNav() {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors hover:bg-muted",
-                active ? "bg-muted font-medium text-foreground" : "text-muted-foreground",
+                active ? "bg-secondary font-medium text-secondary-foreground" : "text-muted-foreground",
               )}
             >
               {label}

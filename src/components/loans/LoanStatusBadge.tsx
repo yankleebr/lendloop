@@ -1,6 +1,7 @@
 import type { LoanStatus } from "../../../convex/lib/validators";
-import { Badge } from "@/components/ui/badge";
-import { LOAN_STATUS_LABELS, LOAN_STATUS_VARIANTS } from "@/lib/loans";
+import { StyledBadge } from "@/components/status/StyledBadge";
+import { LOAN_STATUS_LABELS } from "@/lib/loans";
+import { LOAN_STATUS_STYLES, OVERDUE_STYLE } from "@/lib/status-styles";
 
 interface LoanStatusBadgeProps {
   status: LoanStatus;
@@ -10,8 +11,8 @@ interface LoanStatusBadgeProps {
 export function LoanStatusBadge({ status, isOverdue }: LoanStatusBadgeProps) {
   return (
     <>
-      <Badge variant={LOAN_STATUS_VARIANTS[status]}>{LOAN_STATUS_LABELS[status]}</Badge>
-      {isOverdue && <Badge variant="destructive">Overdue</Badge>}
+      <StyledBadge style={LOAN_STATUS_STYLES[status]}>{LOAN_STATUS_LABELS[status]}</StyledBadge>
+      {isOverdue && <StyledBadge style={OVERDUE_STYLE}>Overdue</StyledBadge>}
     </>
   );
 }

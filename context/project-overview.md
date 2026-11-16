@@ -148,7 +148,7 @@ automationLogs: { loanId, kind: "notification" | "reminder", event, recipientId,
 | Layer | Technology |
 |---|---|
 | Framework | Next.js 16 (App Router) + React 19 + TypeScript |
-| UI | Tailwind CSS v4 + shadcn/ui (base-nova) + lucide-react + Sonner |
+| UI | Tailwind CSS v4 + shadcn/ui (base-nova) + lucide-react + Sonner; indigo brand palette (OKLCH tokens in `globals.css`, status map in `src/lib/status-styles.ts`), System / Light / Dark theme toggle (`data-theme`, no package) |
 | Auth | Clerk |
 | Data + backend | Convex (queries, mutations, actions, HTTP actions) |
 | Automation | n8n Cloud |
