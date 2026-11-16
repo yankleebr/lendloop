@@ -2,15 +2,19 @@
 
 ## Status
 
-Not Started
+In Progress — README: production notes, environment variables, data minimization (docs only)
 
 ## Goals
 
-<!-- Bullet points of what success looks like -->
+- README section *What I would change for production* (the evaluator's "brief note" deliverable), linked from the Contents list
+- Solutions only; problems already described in *Known limitations* are referenced, not repeated
+- No sensitive specifics in the public README (e.g. no mention of where webhook paths are visible)
+- *Environment variables* section: one table (where each value lives in DEV / PROD, who sets it, what it is for) + the matching n8n credentials
+- *Security notes* → *Security and data minimization*, with a "who sees what" table built from the code
 
 ## Notes
 
-<!-- Additional context, constraints, or details from spec -->
+- The email to the evaluator carries a short summary and links to this section
 
 ## History
 

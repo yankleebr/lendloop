@@ -16,12 +16,14 @@ Neighbors own tools they rarely use, while others buy tools they need only once.
 - [Roles and authorization](#roles-and-authorization)
 - [Automation (n8n)](#automation-n8n)
 - [Data model](#data-model)
+- [Environment variables](#environment-variables)
 - [Quick start (app only)](#quick-start-app-only)
 - [Full setup (automation)](#full-setup-automation)
 - [Testing](#testing)
 - [Environments and deploy](#environments-and-deploy)
-- [Security notes](#security-notes)
+- [Security and data minimization](#security-and-data-minimization)
 - [Known limitations](#known-limitations)
+- [What I would change for production](#what-i-would-change-for-production)
 - [How this project was built](#how-this-project-was-built)
 
 ## Features
@@ -184,6 +186,25 @@ Defined in [`convex/schema.ts`](convex/schema.ts):
 - Loan status changes go through a single state machine (`transitionLoan` in `convex/lib/loans.ts`), which is also where WF1 events are emitted.
 - All filtered reads use indexes, and every list is bounded (`.take` or pagination).
 
+## Environment variables
+
+Each value lives in exactly one place. [`.env.example`](.env.example) lists the Next.js names only.
+
+| Variable | Where it lives (DEV / PROD) | Set by | Used for |
+|---|---|---|---|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `.env.local` / Vercel, Production scope | you, from the Clerk dashboard | Clerk in the browser |
+| `CLERK_SECRET_KEY` | `.env.local` / Vercel, Production scope | you, from the Clerk dashboard | Clerk on the server (`auth.protect()`) |
+| `CONVEX_DEPLOYMENT` | `.env.local` / not set | `npx convex dev` | which dev deployment the Convex CLI targets |
+| `NEXT_PUBLIC_CONVEX_URL` | `.env.local` / injected at build | `npx convex dev` / `npx convex deploy` | the app's Convex client |
+| `NEXT_PUBLIC_CONVEX_SITE_URL` | `.env.local` / injected at build | `npx convex dev` / `npx convex deploy` | reference only: the host for the WF2 HTTP nodes |
+| `CONVEX_DEPLOY_KEY` | never local / Vercel, Production scope | you, from the Convex dashboard | the Vercel build pushing to Convex prod |
+| `CLERK_JWT_ISSUER_DOMAIN` | Convex environment variables | `npx convex env set` | Convex validating Clerk tokens ([`convex/auth.config.ts`](convex/auth.config.ts)) |
+| `N8N_WEBHOOK_URL` | Convex environment variables | `npx convex env set` | WF1 webhook *Production URL* (optional) |
+| `N8N_WEBHOOK_SECRET` | Convex environment variables | `npx convex env set` | signing Convex → n8n calls (optional) |
+| `N8N_INBOUND_SECRET` | Convex environment variables | `npx convex env set` | verifying n8n → Convex calls (optional) |
+
+On the n8n side, the matching values are **credentials**, not variables: `HMAC DEV` / `HMAC PROD` (= `N8N_WEBHOOK_SECRET`), `HMAC INBOUND DEV` / `HMAC INBOUND PROD` (= `N8N_INBOUND_SECRET`) and `Gmail DEV` / `Gmail PROD`. Without the optional `N8N_*` variables the app still works; see the next section.
+
 ## Quick start (app only)
 
 The app runs **without n8n**. Notifications are then recorded as `failed` / `not_configured`, and the `/n8n/v1/*` endpoints answer 503. Both are the designed failure path.
@@ -317,13 +338,32 @@ Features were also reviewed by the auditor agents in [`.claude/agents/`](.claude
 - **Rollback:** Vercel Instant Rollback restores the frontend but not the Convex functions. To roll those back, revert the commit on `main`.
 - More: [`CLAUDE.md`](CLAUDE.md) → *Environments*.
 
-## Security notes
+## Security and data minimization
 
+### Security
+
+- **Authorization lives in Convex.** Every function behind sign-in resolves the caller and checks role and ownership server-side; see [Roles and authorization](#roles-and-authorization).
 - **Secrets never live in the repo.** Next.js keys go in `.env.local` (DEV) and Vercel environment variables (PROD); Convex function secrets (`CLERK_JWT_ISSUER_DOMAIN`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `N8N_INBOUND_SECRET`) in Convex environment variables; HMAC and Gmail access in n8n credentials. [`.env.example`](.env.example) lists variable names only.
 - **Exported workflows are sanitized:** no secrets, and the operator address is replaced with `operator@example.invalid`. Credential *names and IDs* remain, which n8n documents as not sensitive.
-- **PII:** `users` stores a name and an optional email. Other users only ever see `{ name, isTrustedLender }`. n8n receives only the **recipient's own** email address, never the counterpart's.
 - **No leaks in errors:** `ConvexError` messages are user-facing text; HTTP actions return fixed JSON bodies; `automationLogs` and logs contain ids and short codes only.
 - **Unsigned traffic is cheap to reject:** the HTTP actions answer 401 before parsing, and WF1 answers 401 before sending anything.
+
+### Data minimization
+
+Each reader gets only the fields its job needs.
+
+| Reader | Sees | Never sees |
+|---|---|---|
+| Visitor (signed out) | tool name and category | owners, conditions, descriptions, loans |
+| Other users | `publicUser` = `{ name, isTrustedLender }`; for booked periods, dates only | email, role, `tokenIdentifier`, who booked |
+| Admins | both parties of every loan as `publicUser`, delivery attempts and failure categories | emails, `tokenIdentifier`, raw error codes |
+| Loan parties (activity line) | a projected DTO: kind, event, audience, status, time, reason | ids, idempotency keys, raw codes; the other party's failure reason (shown only as "couldn't be delivered") |
+| n8n WF1 | the counterpart as `publicUser` and the **recipient's own** email | the counterpart's email |
+| n8n WF2 | borrower name and email, tool name, end date, days overdue | any lender data |
+| Logs and `automationLogs` | ids and short codes | message bodies, response bodies, stack traces |
+
+- **What is stored:** `users` keeps only the name and optional email from the Clerk session token, plus `role` and `isTrustedLender`. Passwords and sign-in data stay in Clerk.
+- **Email is for delivery only.** Identity is Clerk's `tokenIdentifier`; an email address is never used as an auth key.
 
 ## Known limitations
 
@@ -341,6 +381,20 @@ Features were also reviewed by the auditor agents in [`.claude/agents/`](.claude
   - WF2's Gmail node *Retry On Fail* is likely skipped when its error output is used.
 - n8n lists WF1 runs that answered 401 as "Succeeded" (they end in a Respond to Webhook node).
 - The theme choice is stored per browser (`localStorage`), not per account.
+
+## What I would change for production
+
+The live deployment works end to end, but some choices were made for an evaluation project. For real users, I would change:
+
+- **Identity and domain:** a custom domain with a Clerk *Production* instance and dedicated Google OAuth credentials (see [Known limitations](#known-limitations)).
+- **Email and automation hosting:** a transactional email provider (Resend, Postmark or Amazon SES) with SPF, DKIM and DMARC on the domain, instead of Gmail; n8n on a paid plan or self-hosted, instead of the trial; WF3 alerts to an on-call channel (Slack, PagerDuty) as well as email.
+- **Recovering failures:** an admin action that resends `failed` notifications under the same idempotency key, so recovering from an outage no longer needs a new loan event.
+- **Observability:** frontend error tracking (for example Sentry), Convex log streams to a log service, uptime checks on the `/n8n/v1/*` endpoints, and an alert on the `overdue scan saturated` warning.
+- **Scale:** cursor pagination for overdue reminders instead of the fixed 50 / 200 caps; a bounded or denormalized availability read per tool; rate limits on public mutations (loan requests, listing creation).
+- **Secrets:** scheduled rotation of the HMAC secrets and webhook paths, with receivers accepting both the old and the new secret during the switch; full payload validation in the n8n verification step.
+- **Delivery pipeline:** CI on every pull request (lint, tests, build) with branch protection on `main`; a staging environment (or Convex preview deployments) wired to its own n8n workflows; backward-compatible schema changes (widen → migrate → narrow), since Vercel Instant Rollback does not revert Convex functions; scheduled Convex backups.
+- **Privacy (LGPD):** a privacy policy, account deletion and data export, an email opt-out, and a retention period for `automationLogs`.
+- **Time zones:** the user's time zone, not the UTC day, decides when a loan is overdue and when its reminder is sent.
 
 ## How this project was built
 
